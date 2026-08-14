@@ -4,7 +4,14 @@ import { db } from "@/lib/db";
 import { journalEntries } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy client — only created when a request actually hits this endpoint
+let openai: OpenAI | null = null;
+function getOpenAI() {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openai;
+}
 
 const SYSTEM_PROMPT = `You are The Oracle of Throne Notes — a prophetic dream interpreter trained in the spiritual framework of Nwankwo Moses Ezechukwu.
 
@@ -83,6 +90,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Dream text and userId required" }, { status: 400 });
     }
 
+    const client = getOpenAI();
+    if (!client) {
+      return NextResponse.json(
+        { error: "Oracle AI is not configured. Please set OPENAI_API_KEY." },
+        { status: 503 }
+      );
+    }
+
     // 1. Save raw dream entry first
     const [entry] = await db
       .insert(journalEntries)
@@ -115,8 +130,8 @@ Interpret this dream through the Kingdom Lens.
 `;
 
     // 3. Call The Oracle
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Use gpt-4o for higher quality, gpt-4o-mini for cost savings
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
