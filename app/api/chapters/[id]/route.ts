@@ -3,23 +3,29 @@ import { db } from "@/lib/db";
 import { chapters } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const body = await req.json();
-    await db.update(chapters).set({ ...body, updatedAt: new Date() }).where(eq(chapters.id, params.id));
-    return NextResponse.json({ success: true });
+    const [updated] = await db
+      .update(chapters)
+      .set({ ...body, updatedAt: new Date() })
+      .where(eq(chapters.id, id))
+      .returning();
+    return NextResponse.json(updated);
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update chapter" }, { status: 500 });
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await db.delete(chapters).where(eq(chapters.id, params.id));
+    const { id } = await params;
+    await db.delete(chapters).where(eq(chapters.id, id));
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to delete chapter" }, { status: 500 });
   }
 }
