@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Crown, Loader2, Mail, AlertTriangle, CheckCircle } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const { login } = useAuth();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -117,5 +118,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-throne-bg text-throne-text flex items-center justify-center">
+        <Crown className="w-10 h-10 text-throne-gold animate-pulse" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
