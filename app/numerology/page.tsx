@@ -57,7 +57,7 @@ function calculatePersonalDay(birthDate: string, forDate: string): number {
   return reduceToSingle(pm + day);
 }
 
-export interface NumberProfile {
+interface NumberProfile {
   lifePath: number;
   expressionNum: number;
   soulUrgeNum: number;
@@ -67,7 +67,7 @@ export interface NumberProfile {
   personalDay: number;
 }
 
-export const NUMBER_MEANINGS: Record<number, { title: string; meaning: string }> = {
+const NUMBER_MEANINGS: Record<number, { title: string; meaning: string }> = {
   1: { title: "The Leader", meaning: "Independence, innovation, and pioneering spirit. You are here to lead, not follow." },
   2: { title: "The Diplomat", meaning: "Cooperation, sensitivity, and balance. You unite people and bring peace." },
   3: { title: "The Communicator", meaning: "Creativity, joy, and self-expression. Your words carry power to uplift." },
@@ -82,11 +82,11 @@ export const NUMBER_MEANINGS: Record<number, { title: string; meaning: string }>
   33: { title: "The Master Teacher", meaning: "Christ consciousness and unconditional love. You lift others through sacrifice." },
 };
 
-export function getNumberMeaning(num: number) {
+function getNumberMeaning(num: number) {
   return NUMBER_MEANINGS[num] || { title: "Unknown", meaning: "No meaning found for this number." };
 }
 
-export function calculateFullProfile(birthDate: string, name: string, forDate: string): NumberProfile {
+function calculateFullProfile(birthDate: string, name: string, forDate: string): NumberProfile {
   return {
     lifePath: calculateLifePath(birthDate),
     expressionNum: calculateExpression(name),
