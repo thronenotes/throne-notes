@@ -27,7 +27,7 @@ function LoginForm() {
     setResendMsg("");
     try {
       await login(email, password);
-      window.location.href = "/";
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setError(err.message || "Invalid credentials");
     } finally {
