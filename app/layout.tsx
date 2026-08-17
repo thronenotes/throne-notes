@@ -4,7 +4,11 @@ import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
   title: "Throne Notes — Kingdom Operating System",
-  description: "The First Prophetic Workspace Built for Kingdom Builders",
+  description:
+    "Prophetic journaling, dream interpretation, numerology blueprint engine, and scribe studio. Your revelations become books. Your books become movements.",
+  icons: {
+    icon: "/icon",
+  },
 };
 
 export default function RootLayout({
