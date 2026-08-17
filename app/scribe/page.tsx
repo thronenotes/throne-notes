@@ -22,19 +22,18 @@ export default function ScribeStudio() {
   const [books, setBooks] = useState<Book[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
-  const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [sermonMode, setSermonMode] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showNewChapter, setShowNewChapter] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState("");
   const [selectedBookId, setSelectedBookId] = useState("");
-  const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [recording, setRecording] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
+  const isDirtyRef = useRef(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -67,54 +66,64 @@ export default function ScribeStudio() {
         const data = await res.json();
         setChapters(data);
         if (data.length > 0) {
-          setSelectedChapter(data[0]);
-          setContent(data[0].content || "");
-          setTitle(data[0].title);
+          selectChapter(data[0]);
+        } else {
+          setPageLoading(false);
         }
+      } else {
+        setPageLoading(false);
       }
-    } catch (e) { console.error(e); }
-    setPageLoading(false);
+    } catch (e) { console.error(e); setPageLoading(false); }
   };
 
-  const saveCurrent = useCallback(async () => {
-    if (!selectedChapter || !editorRef.current) return;
-    
-    // Read directly from DOM to avoid React state batching issues
-    const currentContent = editorRef.current.innerHTML;
-    const currentTitle = title;
+  const selectChapter = (chapter: Chapter) => {
+    if (isDirtyRef.current && selectedChapter && editorRef.current) {
+      doSave(selectedChapter.id, title, editorRef.current.innerHTML);
+    }
+    setSelectedChapter(chapter);
+    setTitle(chapter.title);
+    isDirtyRef.current = false;
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = chapter.content || "<p><br></p>";
+      }
+    }, 0);
+  };
 
+  const doSave = async (chapterId: string, chapterTitle: string, html: string) => {
+    if (!chapterId) return;
     setSaveStatus("saving");
     try {
-      const res = await fetch(`/api/chapters/${selectedChapter.id}`, {
+      const res = await fetch(`/api/chapters/${chapterId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: currentContent, title: currentTitle }),
+        body: JSON.stringify({ content: html, title: chapterTitle }),
       });
       if (!res.ok) throw new Error("Save failed");
-      
-      setContent(currentContent); // sync state
-      setLastSaved(new Date().toLocaleTimeString());
       setSaveStatus("saved");
+      isDirtyRef.current = false;
       setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch (e) { 
+    } catch (e) {
       console.error("Save failed", e);
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 3000);
     }
+  };
+
+  const saveCurrent = useCallback(() => {
+    if (!selectedChapter || !editorRef.current) return;
+    doSave(selectedChapter.id, title, editorRef.current.innerHTML);
   }, [selectedChapter, title]);
 
   useEffect(() => {
-    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
-    autoSaveRef.current = setTimeout(() => saveCurrent(), 30000);
-    return () => { if (autoSaveRef.current) clearTimeout(autoSaveRef.current); };
-  }, [content, title, saveCurrent]);
-
-  const handleChapterSelect = async (chapter: Chapter) => {
-    await saveCurrent();
-    setSelectedChapter(chapter);
-    setContent(chapter.content || "");
-    setTitle(chapter.title);
-  };
+    if (autoSaveRef.current) clearInterval(autoSaveRef.current);
+    autoSaveRef.current = setInterval(() => {
+      if (isDirtyRef.current && selectedChapter && editorRef.current) {
+        doSave(selectedChapter.id, title, editorRef.current.innerHTML);
+      }
+    }, 30000);
+    return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current); };
+  }, [selectedChapter, title]);
 
   const handleCreateChapter = async () => {
     if (!newChapterTitle.trim() || !selectedBookId) return;
@@ -131,10 +140,8 @@ export default function ScribeStudio() {
     });
     if (res.ok) {
       const newCh = await res.json();
-      setChapters([...chapters, newCh]);
-      setSelectedChapter(newCh);
-      setContent(newCh.content);
-      setTitle(newCh.title);
+      setChapters((prev) => [...prev, newCh]);
+      selectChapter(newCh);
       setNewChapterTitle("");
       setShowNewChapter(false);
     }
@@ -148,24 +155,25 @@ export default function ScribeStudio() {
     setChapters(remaining);
     if (selectedChapter?.id === id) {
       if (remaining.length > 0) {
-        setSelectedChapter(remaining[0]);
-        setContent(remaining[0].content || "");
-        setTitle(remaining[0].title);
+        selectChapter(remaining[0]);
       } else {
         setSelectedChapter(null);
-        setContent("");
         setTitle("");
+        if (editorRef.current) editorRef.current.innerHTML = "";
       }
     }
   };
 
   const execCommand = (command: string, value: string = "") => {
     document.execCommand(command, false, value);
-    if (editorRef.current) setContent(editorRef.current.innerHTML);
+    if (editorRef.current) {
+      editorRef.current.focus();
+      isDirtyRef.current = true;
+    }
   };
 
   const handleInput = () => {
-    if (editorRef.current) setContent(editorRef.current.innerHTML);
+    isDirtyRef.current = true;
   };
 
   const getStatusDot = (status: string) => {
@@ -187,11 +195,10 @@ export default function ScribeStudio() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#0A0A0F" }}>
-      {/* Top Bar */}
       <header className="border-b h-14 flex items-center px-4 justify-between shrink-0 z-40"
         style={{ backgroundColor: "rgba(20,20,30,0.8)", borderColor: "#2A2A3E", backdropFilter: "blur(8px)" }}>
         <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2 transition-colors" style={{ color: "#8A8A9A" }}
+          <Link href="/dashboard" className="flex items-center gap-2 transition-colors" style={{ color: "#8A8A9A" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "#D4AF37")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "#8A8A9A")}>
             <ChevronLeft className="w-4 h-4" />
@@ -202,8 +209,10 @@ export default function ScribeStudio() {
         </div>
 
         <div className="flex items-center gap-3">
-          {lastSaved && saveStatus === "idle" && (
-            <span className="text-xs" style={{ color: "#8A8A9A" }}>Saved {lastSaved}</span>
+          {saveStatus === "idle" && selectedChapter && (
+            <span className="text-xs" style={{ color: "#8A8A9A" }}>
+              {isDirtyRef.current ? "Unsaved changes" : "All changes saved"}
+            </span>
           )}
           {saveStatus === "saving" && (
             <span className="text-xs flex items-center gap-1" style={{ color: "#D4AF37" }}>
@@ -220,13 +229,13 @@ export default function ScribeStudio() {
               <AlertCircle className="w-3 h-3" /> Save failed
             </span>
           )}
-          
+
           <button onClick={saveCurrent}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors border"
             style={{ backgroundColor: "rgba(212,175,55,0.1)", borderColor: "rgba(212,175,55,0.3)", color: "#D4AF37" }}>
             <Save className="w-3.5 h-3.5" /> Save
           </button>
-          
+
           <div className="relative">
             <button onClick={() => setShowExportMenu(!showExportMenu)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors border"
@@ -236,11 +245,11 @@ export default function ScribeStudio() {
             {showExportMenu && (
               <div className="absolute right-0 top-full mt-1 w-40 rounded-lg shadow-xl z-50 overflow-hidden border"
                 style={{ backgroundColor: "#14141E", borderColor: "#2A2A3E" }}>
-                <button onClick={() => { exportToPDF(title, content); setShowExportMenu(false); }}
+                <button onClick={() => { if (editorRef.current) exportToPDF(title, editorRef.current.innerHTML); setShowExportMenu(false); }}
                   className="w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 hover:bg-[#1E1E2A]" style={{ color: "#F5F0E6" }}>
                   <FileText className="w-3.5 h-3.5" style={{ color: "#D4AF37" }} /> Export as PDF
                 </button>
-                <button onClick={() => { exportToMarkdown(title, content); setShowExportMenu(false); }}
+                <button onClick={() => { if (editorRef.current) exportToMarkdown(title, editorRef.current.innerHTML); setShowExportMenu(false); }}
                   className="w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center gap-2 hover:bg-[#1E1E2A]" style={{ color: "#F5F0E6" }}>
                   <Hash className="w-3.5 h-3.5" style={{ color: "#4B0082" }} /> Export as Markdown
                 </button>
@@ -297,7 +306,7 @@ export default function ScribeStudio() {
 
               <div className="space-y-1">
                 {bookChapters.map((chapter) => (
-                  <button key={chapter.id} onClick={() => handleChapterSelect(chapter)}
+                  <button key={chapter.id} onClick={() => selectChapter(chapter)}
                     className="w-full text-left px-3 py-2.5 rounded-md text-xs transition-all group relative"
                     style={selectedChapter?.id === chapter.id ? { backgroundColor: "rgba(75,0,130,0.1)", color: "#F5F0E6", border: "1px solid rgba(75,0,130,0.2)" } : { color: "#8A8A9A" }}
                     onMouseEnter={(e) => { if (selectedChapter?.id !== chapter.id) { e.currentTarget.style.backgroundColor = "#1E1E2A"; e.currentTarget.style.color = "#F5F0E6"; } }}
@@ -330,7 +339,7 @@ export default function ScribeStudio() {
           )}
 
           <div className="px-6 pt-6 pb-2">
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Untitled Chapter"
+            <input type="text" value={title} onChange={(e) => { setTitle(e.target.value); isDirtyRef.current = true; }} placeholder="Untitled Chapter"
               className="w-full bg-transparent text-2xl outline-none" style={{ color: "#F5F0E6", fontFamily: "Cinzel, serif" }} />
           </div>
 
@@ -348,9 +357,14 @@ export default function ScribeStudio() {
           )}
 
           <div className="flex-1 overflow-y-auto px-6 py-6">
-            <div ref={editorRef} contentEditable onInput={handleInput} dangerouslySetInnerHTML={{ __html: content }}
-              className="min-h-[60vh] outline-none" suppressContentEditableWarning
-              style={{ color: "#F5F0E6", fontFamily: "Inter, sans-serif", lineHeight: 1.8, fontSize: "1.05rem" }} />
+            <div
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={handleInput}
+              className="min-h-[60vh] outline-none"
+              style={{ color: "#F5F0E6", fontFamily: "Inter, sans-serif", lineHeight: 1.8, fontSize: "1.05rem" }}
+            />
           </div>
         </main>
 

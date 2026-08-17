@@ -174,7 +174,7 @@ export default function DreamVault() {
       <header className="border-b sticky top-0 z-40 backdrop-blur-sm" style={{ backgroundColor: "rgba(20,20,30,0.8)", borderColor: "#2A2A3E" }}>
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 transition-colors hover:text-[#D4AF37]" style={{ color: "#8A8A9A" }}>
+            <Link href="/dashboard" className="flex items-center gap-2 transition-colors hover:text-[#D4AF37]" style={{ color: "#8A8A9A" }}>
               <Crown className="w-5 h-5" style={{ color: "#D4AF37" }} />
             </Link>
             <div className="h-6 w-px" style={{ backgroundColor: "#2A2A3E" }} />
