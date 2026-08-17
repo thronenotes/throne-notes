@@ -6,6 +6,7 @@ import {
   Feather, ChevronLeft, Maximize2, Minimize2, Save, FileText,
   Trash2, Plus, Download, Crown, BookOpen, Hash, Sparkles,
   Bold, Italic, Heading1, Heading2, Quote, List, Mic, MicOff, Loader2,
+  CheckCircle, AlertCircle,
 } from "lucide-react";
 import { exportToPDF, exportToMarkdown } from "@/lib/export";
 import { useAuth } from "@/lib/auth-context";
@@ -29,6 +30,7 @@ export default function ScribeStudio() {
   const [newChapterTitle, setNewChapterTitle] = useState("");
   const [selectedBookId, setSelectedBookId] = useState("");
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [recording, setRecording] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -75,16 +77,31 @@ export default function ScribeStudio() {
   };
 
   const saveCurrent = useCallback(async () => {
-    if (!selectedChapter) return;
+    if (!selectedChapter || !editorRef.current) return;
+    
+    // Read directly from DOM to avoid React state batching issues
+    const currentContent = editorRef.current.innerHTML;
+    const currentTitle = title;
+
+    setSaveStatus("saving");
     try {
-      await fetch(`/api/chapters/${selectedChapter.id}`, {
+      const res = await fetch(`/api/chapters/${selectedChapter.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, title }),
+        body: JSON.stringify({ content: currentContent, title: currentTitle }),
       });
+      if (!res.ok) throw new Error("Save failed");
+      
+      setContent(currentContent); // sync state
       setLastSaved(new Date().toLocaleTimeString());
-    } catch (e) { console.error("Auto-save failed", e); }
-  }, [selectedChapter, content, title]);
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (e) { 
+      console.error("Save failed", e);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  }, [selectedChapter, title]);
 
   useEffect(() => {
     if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
@@ -185,12 +202,31 @@ export default function ScribeStudio() {
         </div>
 
         <div className="flex items-center gap-3">
-          {lastSaved && <span className="text-xs" style={{ color: "#8A8A9A" }}>Saved {lastSaved}</span>}
+          {lastSaved && saveStatus === "idle" && (
+            <span className="text-xs" style={{ color: "#8A8A9A" }}>Saved {lastSaved}</span>
+          )}
+          {saveStatus === "saving" && (
+            <span className="text-xs flex items-center gap-1" style={{ color: "#D4AF37" }}>
+              <Loader2 className="w-3 h-3 animate-spin" /> Saving...
+            </span>
+          )}
+          {saveStatus === "saved" && (
+            <span className="text-xs flex items-center gap-1" style={{ color: "#046307" }}>
+              <CheckCircle className="w-3 h-3" /> Saved
+            </span>
+          )}
+          {saveStatus === "error" && (
+            <span className="text-xs flex items-center gap-1" style={{ color: "#8B0000" }}>
+              <AlertCircle className="w-3 h-3" /> Save failed
+            </span>
+          )}
+          
           <button onClick={saveCurrent}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors border"
             style={{ backgroundColor: "rgba(212,175,55,0.1)", borderColor: "rgba(212,175,55,0.3)", color: "#D4AF37" }}>
             <Save className="w-3.5 h-3.5" /> Save
           </button>
+          
           <div className="relative">
             <button onClick={() => setShowExportMenu(!showExportMenu)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors border"

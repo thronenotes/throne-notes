@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { useState, useEffect } from "react";
 import {
   Feather,
   Moon,
@@ -13,10 +14,56 @@ import {
   LogOut,
   LogIn,
   UserPlus,
+  Loader2,
+  FileText,
+  Flame,
+  Hash,
 } from "lucide-react";
+
+interface Book {
+  id: string;
+  title: string;
+  status: string;
+  updatedAt: string;
+}
+
+interface Entry {
+  id: string;
+  title: string | null;
+  content: string;
+  entryType: string;
+  createdAt: string;
+}
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const [books, setBooks] = useState<Book[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchDashboardData();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
+
+  const fetchDashboardData = async () => {
+    try {
+      const [booksRes, entriesRes] = await Promise.all([
+        fetch("/api/books"),
+        fetch(`/api/entries?userId=${user?.id || ""}`),
+      ]);
+
+      if (booksRes.ok) setBooks(await booksRes.json());
+      if (entriesRes.ok) setEntries(await entriesRes.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const tools = [
     {
@@ -48,6 +95,12 @@ export default function Dashboard() {
       accent: "#B87333",
     },
   ];
+
+  const totalWords = entries.reduce((acc, e) => acc + (e.content?.split(/\s+/).filter((w: string) => w.length > 0).length || 0), 0)
+    + books.reduce((acc, b) => acc + 0, 0); // Books word count would need chapters fetch
+
+  const recentEntries = entries.slice(0, 3);
+  const recentBooks = books.slice(0, 3);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#0A0A0F" }}>
@@ -134,7 +187,7 @@ export default function Dashboard() {
         </div>
 
         {/* Tools Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
           {tools.map((tool) => {
             const Icon = tool.icon;
             return (
@@ -176,13 +229,89 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* Stats */}
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6">
-          <StatCard label="Books in progress" value="3" />
-          <StatCard label="Dreams captured" value="47" />
-          <StatCard label="Chapters written" value="12" />
-          <StatCard label="Words this week" value="8,432" />
-        </div>
+        {/* Live Stats */}
+        {user && !loading && (
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+            <StatCard label="Books in progress" value={String(books.filter((b) => b.status !== "published").length)} />
+            <StatCard label="Dreams captured" value={String(entries.length)} />
+            <StatCard label="Chapters written" value="—" />
+            <StatCard label="Words this week" value={totalWords.toLocaleString()} />
+          </div>
+        )}
+
+        {user && loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#D4AF37" }} />
+          </div>
+        )}
+
+        {/* Recent Activity */}
+        {user && !loading && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Recent Journal Entries */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-heading uppercase tracking-widest" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
+                  Recent Journal Entries
+                </h3>
+                <Link href="/vault" className="text-xs text-throne-gold hover:text-throne-goldLight transition-colors">
+                  View All
+                </Link>
+              </div>
+              <div className="space-y-3">
+                {recentEntries.length === 0 && (
+                  <p className="text-xs text-throne-text-muted">No entries yet. Start capturing your revelations.</p>
+                )}
+                {recentEntries.map((entry) => (
+                  <Link
+                    key={entry.id}
+                    href="/vault"
+                    className="block p-4 rounded-lg border transition-colors hover:border-throne-gold/30"
+                    style={{ backgroundColor: "rgba(20,20,30,0.3)", borderColor: "#2A2A3E" }}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Flame className="w-3 h-3" style={{ color: "#4B0082" }} />
+                      <span className="text-xs text-throne-text-muted capitalize">{entry.entryType}</span>
+                    </div>
+                    <p className="text-sm text-throne-text truncate">{entry.title || "Untitled Entry"}</p>
+                    <p className="text-[11px] text-throne-text-muted mt-1 line-clamp-2">{entry.content}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Books */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-heading uppercase tracking-widest" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
+                  Recent Books
+                </h3>
+                <Link href="/scribe" className="text-xs text-throne-gold hover:text-throne-goldLight transition-colors">
+                  Open Scribe
+                </Link>
+              </div>
+              <div className="space-y-3">
+                {recentBooks.length === 0 && (
+                  <p className="text-xs text-throne-text-muted">No books yet. Start your first manuscript in Scribe Studio.</p>
+                )}
+                {recentBooks.map((book) => (
+                  <Link
+                    key={book.id}
+                    href="/scribe"
+                    className="block p-4 rounded-lg border transition-colors hover:border-throne-gold/30"
+                    style={{ backgroundColor: "rgba(20,20,30,0.3)", borderColor: "#2A2A3E" }}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <BookOpen className="w-3 h-3" style={{ color: "#D4AF37" }} />
+                      <span className="text-xs text-throne-text-muted capitalize">{book.status}</span>
+                    </div>
+                    <p className="text-sm text-throne-text">{book.title}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
