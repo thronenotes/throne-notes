@@ -113,6 +113,17 @@ export const journalEntries = pgTable("journal_entries", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+// ─── QUICK NOTES ───────────────────────────────────────────────────
+
+export const notes = pgTable("notes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  title: text("title"),
+  content: text("content").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 // ─── NUMEROLOGY ────────────────────────────────────────────────────
 
 export const numerologyCalculations = pgTable("numerology_calculations", {
@@ -204,6 +215,8 @@ export type Chapter = typeof chapters.$inferSelect;
 export type NewChapter = typeof chapters.$inferInsert;
 export type JournalEntry = typeof journalEntries.$inferSelect;
 export type NewJournalEntry = typeof journalEntries.$inferInsert;
+export type Note = typeof notes.$inferSelect;
+export type NewNote = typeof notes.$inferInsert;
 export type NumerologyCalculation = typeof numerologyCalculations.$inferSelect;
 export type Follower = typeof followers.$inferSelect;
 export type PropheticInboxItem = typeof propheticInbox.$inferSelect;
