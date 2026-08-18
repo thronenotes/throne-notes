@@ -26,9 +26,11 @@ export default function ScribeStudio() {
   const [sermonMode, setSermonMode] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showNewChapter, setShowNewChapter] = useState(false);
+  const [showNewBook, setShowNewBook] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState("");
+  const [newBookTitle, setNewBookTitle] = useState("");
   const [selectedBookId, setSelectedBookId] = useState("");
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error" | "no-chapter">("idle");
   const [recording, setRecording] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -68,12 +70,63 @@ export default function ScribeStudio() {
         if (data.length > 0) {
           selectChapter(data[0]);
         } else {
-          setPageLoading(false);
+          await createFirstChapter(bookId);
         }
       } else {
         setPageLoading(false);
       }
     } catch (e) { console.error(e); setPageLoading(false); }
+  };
+
+  const createFirstChapter = async (bookId: string) => {
+    try {
+      const res = await fetch("/api/chapters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookId,
+          title: "Chapter 1",
+          content: "<p>Start writing your decree here...</p>",
+          orderIndex: 0,
+          status: "draft",
+        }),
+      });
+      if (res.ok) {
+        const newCh = await res.json();
+        setChapters([newCh]);
+        selectChapter(newCh);
+      } else {
+        setPageLoading(false);
+      }
+    } catch (e) {
+      console.error(e);
+      setPageLoading(false);
+    }
+  };
+
+  const handleCreateBook = async () => {
+    if (!newBookTitle.trim()) return;
+    try {
+      const res = await fetch("/api/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newBookTitle,
+          status: "draft",
+          creatorId: user?.id,
+        }),
+      });
+      if (res.ok) {
+        const newBook = await res.json();
+        setBooks((prev) => [...prev, newBook]);
+        setSelectedBookId(newBook.id);
+        setNewBookTitle("");
+        setShowNewBook(false);
+        await createFirstChapter(newBook.id);
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const selectChapter = (chapter: Chapter) => {
@@ -111,7 +164,11 @@ export default function ScribeStudio() {
   };
 
   const saveCurrent = useCallback(() => {
-    if (!selectedChapter || !editorRef.current) return;
+    if (!selectedChapter || !editorRef.current) {
+      setSaveStatus("no-chapter");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+      return;
+    }
     doSave(selectedChapter.id, title, editorRef.current.innerHTML);
   }, [selectedChapter, title]);
 
@@ -160,6 +217,7 @@ export default function ScribeStudio() {
         setSelectedChapter(null);
         setTitle("");
         if (editorRef.current) editorRef.current.innerHTML = "";
+        await createFirstChapter(selectedBookId);
       }
     }
   };
@@ -195,6 +253,7 @@ export default function ScribeStudio() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#0A0A0F" }}>
+      {/* Top Bar */}
       <header className="border-b h-14 flex items-center px-4 justify-between shrink-0 z-40"
         style={{ backgroundColor: "rgba(20,20,30,0.8)", borderColor: "#2A2A3E", backdropFilter: "blur(8px)" }}>
         <div className="flex items-center gap-4">
@@ -227,6 +286,11 @@ export default function ScribeStudio() {
           {saveStatus === "error" && (
             <span className="text-xs flex items-center gap-1" style={{ color: "#8B0000" }}>
               <AlertCircle className="w-3 h-3" /> Save failed
+            </span>
+          )}
+          {saveStatus === "no-chapter" && (
+            <span className="text-xs flex items-center gap-1" style={{ color: "#8B0000" }}>
+              <AlertCircle className="w-3 h-3" /> Create a book first
             </span>
           )}
 
@@ -267,8 +331,29 @@ export default function ScribeStudio() {
       <div className="flex flex-1 overflow-hidden">
         {!sermonMode && (
           <aside className="w-64 border-r flex flex-col shrink-0" style={{ backgroundColor: "rgba(20,20,30,0.3)", borderColor: "#2A2A3E" }}>
+            {/* Books */}
             <div className="p-4 border-b" style={{ borderColor: "#2A2A3E" }}>
-              <span className="text-xs tracking-wider block mb-3" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>BOOKS</span>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs tracking-wider" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>BOOKS</span>
+                <button onClick={() => setShowNewBook(!showNewBook)} className="p-1 rounded transition-colors" style={{ color: "#8A8A9A" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#1E1E2A"; e.currentTarget.style.color = "#D4AF37"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#8A8A9A"; }}>
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {showNewBook && (
+                <div className="mb-3 p-2 rounded-md border" style={{ backgroundColor: "#14141E", borderColor: "#2A2A3E" }}>
+                  <input type="text" value={newBookTitle} onChange={(e) => setNewBookTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateBook()} placeholder="Book title..."
+                    className="w-full bg-transparent text-xs outline-none mb-2" style={{ color: "#F5F0E6" }} autoFocus />
+                  <div className="flex gap-2">
+                    <button onClick={handleCreateBook} className="px-2 py-1 rounded text-xs transition-colors" style={{ backgroundColor: "rgba(212,175,55,0.2)", color: "#D4AF37" }}>Create</button>
+                    <button onClick={() => { setShowNewBook(false); setNewBookTitle(""); }} className="px-2 py-1 rounded text-xs" style={{ color: "#8A8A9A" }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1">
                 {books.map((book) => (
                   <button key={book.id} onClick={() => { setSelectedBookId(book.id); fetchChapters(book.id); }}
@@ -282,6 +367,7 @@ export default function ScribeStudio() {
               </div>
             </div>
 
+            {/* Chapters */}
             <div className="flex-1 overflow-y-auto p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs tracking-wider" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>CHAPTERS</span>
