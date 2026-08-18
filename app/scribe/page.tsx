@@ -47,7 +47,7 @@ export default function ScribeStudio() {
 
   const fetchBooks = async () => {
     try {
-      const res = await fetch("/api/books");
+      const res = await fetch(`/api/books?userId=${user?.id || ""}`);
       if (res.ok) {
         const data = await res.json();
         setBooks(data);
@@ -56,6 +56,8 @@ export default function ScribeStudio() {
           await fetchChapters(data[0].id);
           return;
         }
+      } else {
+        console.error("Failed to fetch books:", res.status);
       }
     } catch (e) { console.error(e); }
     setPageLoading(false);
@@ -73,6 +75,7 @@ export default function ScribeStudio() {
           await createFirstChapter(bookId);
         }
       } else {
+        console.error("Failed to fetch chapters:", res.status);
         setPageLoading(false);
       }
     } catch (e) { console.error(e); setPageLoading(false); }
@@ -105,7 +108,7 @@ export default function ScribeStudio() {
   };
 
   const handleCreateBook = async () => {
-    if (!newBookTitle.trim()) return;
+    if (!newBookTitle.trim() || !user) return;
     try {
       const res = await fetch("/api/books", {
         method: "POST",
@@ -113,7 +116,7 @@ export default function ScribeStudio() {
         body: JSON.stringify({
           title: newBookTitle,
           status: "draft",
-          creatorId: user?.id,
+          creatorId: user.id,
         }),
       });
       if (res.ok) {
@@ -123,6 +126,8 @@ export default function ScribeStudio() {
         setNewBookTitle("");
         setShowNewBook(false);
         await createFirstChapter(newBook.id);
+      } else {
+        console.error("Failed to create book:", res.status);
       }
     } catch (e) {
       console.error(e);
@@ -140,6 +145,7 @@ export default function ScribeStudio() {
       if (editorRef.current) {
         editorRef.current.innerHTML = chapter.content || "<p><br></p>";
       }
+      setPageLoading(false);
     }, 0);
   };
 
@@ -354,6 +360,10 @@ export default function ScribeStudio() {
                 </div>
               )}
 
+              {books.length === 0 && !showNewBook && (
+                <p className="text-[11px] text-throne-text-muted mb-2">No books yet. Create your first manuscript.</p>
+              )}
+
               <div className="space-y-1">
                 {books.map((book) => (
                   <button key={book.id} onClick={() => { setSelectedBookId(book.id); fetchChapters(book.id); }}
@@ -388,6 +398,10 @@ export default function ScribeStudio() {
                     <button onClick={() => { setShowNewChapter(false); setNewChapterTitle(""); }} className="px-2 py-1 rounded text-xs" style={{ color: "#8A8A9A" }}>Cancel</button>
                   </div>
                 </div>
+              )}
+
+              {bookChapters.length === 0 && books.length > 0 && (
+                <p className="text-[11px] text-throne-text-muted">No chapters yet.</p>
               )}
 
               <div className="space-y-1">
@@ -443,14 +457,27 @@ export default function ScribeStudio() {
           )}
 
           <div className="flex-1 overflow-y-auto px-6 py-6">
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              onInput={handleInput}
-              className="min-h-[60vh] outline-none"
-              style={{ color: "#F5F0E6", fontFamily: "Inter, sans-serif", lineHeight: 1.8, fontSize: "1.05rem" }}
-            />
+            {books.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <BookOpen className="w-10 h-10 mb-4" style={{ color: "#2A2A3E" }} />
+                <p className="text-sm text-throne-text-muted mb-2">No manuscript found.</p>
+                <p className="text-xs text-throne-text-muted mb-4">Create a book from the sidebar to start writing.</p>
+                <button onClick={() => setShowNewBook(true)}
+                  className="px-4 py-2 rounded-lg text-xs font-bold transition-colors"
+                  style={{ backgroundColor: "#D4AF37", color: "#0A0A0F" }}>
+                  Create First Book
+                </button>
+              </div>
+            ) : (
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleInput}
+                className="min-h-[60vh] outline-none"
+                style={{ color: "#F5F0E6", fontFamily: "Inter, sans-serif", lineHeight: 1.8, fontSize: "1.05rem" }}
+              />
+            )}
           </div>
         </main>
 
