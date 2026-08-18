@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
-  Crown, Moon, Plus, Mic, MicOff, Search, Filter,
+  Crown, ChevronLeft, Moon, Plus, Mic, MicOff, Search, Filter,
   Lock, Globe, Trash2, Edit3, X, Save, Loader2,
   Sun, Flame, Eye, MessageCircle, BookOpen, Calendar,
 } from "lucide-react";
@@ -175,6 +175,7 @@ export default function DreamVault() {
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/dashboard" className="flex items-center gap-2 transition-colors hover:text-[#D4AF37]" style={{ color: "#8A8A9A" }}>
+              <ChevronLeft className="w-4 h-4" />
               <Crown className="w-5 h-5" style={{ color: "#D4AF37" }} />
             </Link>
             <div className="h-6 w-px" style={{ backgroundColor: "#2A2A3E" }} />
