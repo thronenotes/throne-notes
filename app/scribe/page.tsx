@@ -54,7 +54,6 @@ export default function ScribeStudio() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
-  const [noteSaving, setNoteSaving] = useState(false);
   const [noteSaveStatus, setNoteSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [creatingNote, setCreatingNote] = useState(false);
   const noteAutoSaveRef = useRef<NodeJS.Timeout | null>(null);
@@ -135,7 +134,6 @@ export default function ScribeStudio() {
 
   const handleCreateBook = async () => {
     if (!newBookTitle.trim() || !user || creatingBook) return;
-    // Prevent duplicate titles locally
     if (books.some(b => b.title.toLowerCase() === newBookTitle.trim().toLowerCase())) {
       alert("A book with this title already exists.");
       return;
@@ -163,6 +161,36 @@ export default function ScribeStudio() {
       console.error(e);
     } finally {
       setCreatingBook(false);
+    }
+  };
+
+  const handleDeleteBook = async (bookId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this book and ALL its chapters permanently?")) return;
+    try {
+      const res = await fetch(`/api/books/${bookId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      
+      const remainingBooks = books.filter((b) => b.id !== bookId);
+      setBooks(remainingBooks);
+      
+      if (selectedBookId === bookId) {
+        setChapters([]);
+        setSelectedChapter(null);
+        setTitle("");
+        if (editorRef.current) editorRef.current.innerHTML = "";
+        
+        if (remainingBooks.length > 0) {
+          setSelectedBookId(remainingBooks[0].id);
+          await fetchChapters(remainingBooks[0].id);
+        } else {
+          setSelectedBookId("");
+          setPageLoading(false);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to delete book", e);
+      alert("Failed to delete book. Try again.");
     }
   };
 
@@ -245,18 +273,26 @@ export default function ScribeStudio() {
   const handleDeleteChapter = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm("Delete this chapter permanently?")) return;
-    await fetch(`/api/chapters/${id}`, { method: "DELETE" });
-    const remaining = chapters.filter((c) => c.id !== id);
-    setChapters(remaining);
-    if (selectedChapter?.id === id) {
-      if (remaining.length > 0) {
-        selectChapter(remaining[0]);
-      } else {
-        setSelectedChapter(null);
-        setTitle("");
-        if (editorRef.current) editorRef.current.innerHTML = "";
-        await createFirstChapter(selectedBookId);
+    try {
+      const res = await fetch(`/api/chapters/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      
+      const remaining = chapters.filter((c) => c.id !== id);
+      setChapters(remaining);
+      
+      if (selectedChapter?.id === id) {
+        if (remaining.length > 0) {
+          selectChapter(remaining[0]);
+        } else {
+          setSelectedChapter(null);
+          setTitle("");
+          if (editorRef.current) editorRef.current.innerHTML = "";
+          await createFirstChapter(selectedBookId);
+        }
       }
+    } catch (e) {
+      console.error("Failed to delete chapter", e);
+      alert("Failed to delete chapter. Try again.");
     }
   };
 
@@ -359,12 +395,18 @@ export default function ScribeStudio() {
 
   const handleDeleteNote = async (id: string) => {
     if (!confirm("Delete this note?")) return;
-    await fetch(`/api/notes/${id}`, { method: "DELETE" });
-    setNotesList((prev) => prev.filter((n) => n.id !== id));
-    if (selectedNote?.id === id) {
-      setSelectedNote(null);
-      setNoteTitle("");
-      setNoteContent("");
+    try {
+      const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+      setNotesList((prev) => prev.filter((n) => n.id !== id));
+      if (selectedNote?.id === id) {
+        setSelectedNote(null);
+        setNoteTitle("");
+        setNoteContent("");
+      }
+    } catch (e) {
+      console.error("Failed to delete note", e);
+      alert("Failed to delete note. Try again.");
     }
   };
 
@@ -529,13 +571,24 @@ export default function ScribeStudio() {
 
                 <div className="space-y-1">
                   {books.map((book) => (
-                    <button key={book.id} onClick={() => { setSelectedBookId(book.id); fetchChapters(book.id); }}
-                      className="w-full text-left px-3 py-2 rounded-md text-xs transition-all flex items-center gap-2"
-                      style={selectedBookId === book.id ? { backgroundColor: "rgba(212,175,55,0.1)", color: "#D4AF37", border: "1px solid rgba(212,175,55,0.2)" } : { color: "#8A8A9A" }}
-                      onMouseEnter={(e) => { if (selectedBookId !== book.id) { e.currentTarget.style.backgroundColor = "#1E1E2A"; e.currentTarget.style.color = "#F5F0E6"; } }}
-                      onMouseLeave={(e) => { if (selectedBookId !== book.id) { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#8A8A9A"; } }}>
-                      <BookOpen className="w-3.5 h-3.5" /> {book.title}
-                    </button>
+                    <div key={book.id} className="group relative">
+                      <button onClick={() => { setSelectedBookId(book.id); fetchChapters(book.id); }}
+                        className="w-full text-left px-3 py-2 rounded-md text-xs transition-all flex items-center gap-2 pr-8"
+                        style={selectedBookId === book.id ? { backgroundColor: "rgba(212,175,55,0.1)", color: "#D4AF37", border: "1px solid rgba(212,175,55,0.2)" } : { color: "#8A8A9A" }}
+                        onMouseEnter={(e) => { if (selectedBookId !== book.id) { e.currentTarget.style.backgroundColor = "#1E1E2A"; e.currentTarget.style.color = "#F5F0E6"; } }}
+                        onMouseLeave={(e) => { if (selectedBookId !== book.id) { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#8A8A9A"; } }}>
+                        <BookOpen className="w-3.5 h-3.5 shrink-0" /> 
+                        <span className="truncate">{book.title}</span>
+                      </button>
+                      {/* Delete book button */}
+                      <button onClick={(e) => handleDeleteBook(book.id, e)}
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 transition-all"
+                        style={{ color: "#8A8A9A" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(139,0,0,0.2)"; e.currentTarget.style.color = "#8B0000"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#8A8A9A"; }}>
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
