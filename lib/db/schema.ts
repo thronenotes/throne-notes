@@ -58,6 +58,7 @@ export const books = pgTable("books", {
   coverImageUrl: text("cover_image_url"),
   status: bookStatusEnum("status").default("draft"),
   priceDigital: decimal("price_digital", { precision: 10, scale: 2 }),
+  currency: text("currency").default("USD"),
   slug: text("slug").unique(),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -150,6 +151,20 @@ export const followers = pgTable("followers", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+// ─── PURCHASES ─────────────────────────────────────────────────────
+// Who bought what book. Unlocks paid content.
+
+export const purchases = pgTable("purchases", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  buyerId: uuid("buyer_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  bookId: uuid("book_id").notNull().references(() => books.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").default("USD"),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  status: text("status").default("completed"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 // ─── PROPHETIC INBOX ───────────────────────────────────────────────
 
 export const propheticInbox = pgTable("prophetic_inbox", {
@@ -219,6 +234,8 @@ export type Note = typeof notes.$inferSelect;
 export type NewNote = typeof notes.$inferInsert;
 export type NumerologyCalculation = typeof numerologyCalculations.$inferSelect;
 export type Follower = typeof followers.$inferSelect;
+export type Purchase = typeof purchases.$inferSelect;
+export type NewPurchase = typeof purchases.$inferInsert;
 export type PropheticInboxItem = typeof propheticInbox.$inferSelect;
 export type TreasuryItem = typeof treasury.$inferSelect;
 export type Court = typeof courts.$inferSelect;

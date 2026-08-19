@@ -6,12 +6,12 @@ import {
   Feather, ChevronLeft, Maximize2, Minimize2, Save, FileText,
   Trash2, Plus, Download, Crown, BookOpen, Hash, Sparkles,
   Bold, Italic, Heading1, Heading2, Quote, List, Mic, MicOff, Loader2,
-  CheckCircle, AlertCircle, StickyNote, Globe,
+  CheckCircle, AlertCircle, StickyNote, Globe, Lock, DollarSign,
 } from "lucide-react";
 import { exportToPDF, exportToMarkdown } from "@/lib/export";
 import { useAuth } from "@/lib/auth-context";
 
-interface Book { id: string; title: string; status: string; slug?: string | null; }
+interface Book { id: string; title: string; status: string; slug?: string | null; priceDigital?: string | null; }
 interface Chapter {
   id: string; bookId: string; title: string; content: string;
   status: string; sourceDreamId?: string; updatedAt: string;
@@ -45,6 +45,9 @@ export default function ScribeStudio() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error" | "no-chapter">("idle");
   const [recording, setRecording] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishPrice, setPublishPrice] = useState("");
+  const [publishingBookId, setPublishingBookId] = useState("");
   const editorRef = useRef<HTMLDivElement>(null);
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null);
   const isDirtyRef = useRef(false);
@@ -194,16 +197,31 @@ export default function ScribeStudio() {
     }
   };
 
-  const handlePublishBook = async (bookId: string, e: React.MouseEvent) => {
+  const openPublishModal = (bookId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm("Publish this book? It will be visible to everyone on your public profile.")) return;
+    setPublishingBookId(bookId);
+    const book = books.find((b) => b.id === bookId);
+    setPublishPrice(book?.priceDigital || "");
+    setShowPublishModal(true);
+  };
+
+  const handlePublishBook = async () => {
+    if (!publishingBookId) return;
+    const price = publishPrice.trim() === "" ? "0" : publishPrice.trim();
     try {
-      const res = await fetch(`/api/books/${bookId}/publish`, { method: "POST" });
+      const res = await fetch(`/api/books/${publishingBookId}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ price }),
+      });
       const data = await res.json();
       if (data.success) {
         setBooks((prev) =>
-          prev.map((b) => (b.id === bookId ? { ...b, status: "published", slug: data.slug } : b))
+          prev.map((b) => (b.id === publishingBookId ? { ...b, status: "published", slug: data.slug, priceDigital: price } : b))
         );
+        setShowPublishModal(false);
+        setPublishingBookId("");
+        setPublishPrice("");
         alert(`Published! View: https://thronenotes.com/books/${data.slug}`);
       }
     } catch (e) {
@@ -609,7 +627,7 @@ export default function ScribeStudio() {
                       <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         {book.status !== "published" && (
                           <button
-                            onClick={(e) => handlePublishBook(book.id, e)}
+                            onClick={(e) => openPublishModal(book.id, e)}
                             className="p-1 rounded text-[10px] font-bold transition-colors"
                             style={{ color: "#046307" }}
                             title="Publish book"
@@ -855,6 +873,58 @@ export default function ScribeStudio() {
               </div>
             )}
           </main>
+        </div>
+      )}
+
+      {/* Publish Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(10,10,15,0.8)", backdropFilter: "blur(8px)" }}>
+          <div className="w-full max-w-md rounded-2xl border shadow-2xl p-6" style={{ backgroundColor: "#14141E", borderColor: "#2A2A3E" }}>
+            <h2 className="text-sm mb-1" style={{ color: "#F5F0E6", fontFamily: "Cinzel, serif" }}>Publish Manuscript</h2>
+            <p className="text-xs mb-5" style={{ color: "#8A8A9A" }}>Set a price or make it free for your readers.</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] uppercase tracking-widest mb-2 block" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
+                  Price (USD)
+                </label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#8A8A9A" }} />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={publishPrice}
+                    onChange={(e) => setPublishPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full pl-9 pr-4 py-2.5 rounded-lg border outline-none text-sm transition-colors"
+                    style={{ backgroundColor: "#0A0A0F", borderColor: "#2A2A3E", color: "#F5F0E6" }}
+                  />
+                </div>
+                <p className="text-[10px] mt-1.5" style={{ color: "#5A5A6A" }}>
+                  Leave empty or 0 to make this book free.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 mt-6">
+              <button
+                onClick={() => { setShowPublishModal(false); setPublishingBookId(""); setPublishPrice(""); }}
+                className="px-4 py-2 rounded-lg text-xs transition-colors"
+                style={{ color: "#8A8A9A" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePublishBook}
+                className="px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
+                style={{ backgroundColor: "#046307", color: "#F5F0E6" }}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                Publish
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
