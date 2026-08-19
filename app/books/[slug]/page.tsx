@@ -53,7 +53,6 @@ export default function BookReader() {
   useEffect(() => {
     if (book && user) checkAccess();
     else if (book && !user) {
-      // Not logged in: free books OK, paid books = no access
       const isFree = !book.priceDigital || parseFloat(book.priceDigital) === 0;
       setHasAccess(isFree);
       setCheckingAccess(false);
@@ -62,7 +61,7 @@ export default function BookReader() {
 
   const fetchBook = async () => {
     try {
-      const res = await fetch(`/api/books/${slug}`);
+      const res = await fetch(`/api/books/public/${slug}`);
       if (res.ok) {
         const data = await res.json();
         setBook(data.book);
@@ -137,7 +136,6 @@ export default function BookReader() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#0A0A0F", color: "#F5F0E6" }}>
-      {/* Header */}
       <header className="border-b sticky top-0 z-40" style={{ backgroundColor: "rgba(10,10,15,0.95)", borderColor: "#2A2A3E", backdropFilter: "blur(8px)" }}>
         <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -158,7 +156,6 @@ export default function BookReader() {
       </header>
 
       <div className="max-w-4xl mx-auto px-6 py-12 flex gap-8">
-        {/* Chapter Sidebar */}
         <aside className="w-64 shrink-0 hidden md:block">
           <div className="sticky top-24">
             <h3 className="text-xs uppercase tracking-widest mb-4" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
@@ -187,9 +184,7 @@ export default function BookReader() {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 min-w-0">
-          {/* Book Header */}
           <div className="mb-8 pb-8 border-b" style={{ borderColor: "#2A2A3E" }}>
             <h1 className="text-3xl mb-3" style={{ fontFamily: "Cinzel, serif", color: "#F5F0E6" }}>
               {book.title}
@@ -212,7 +207,6 @@ export default function BookReader() {
             </div>
           </div>
 
-          {/* Paywall or Content */}
           {checkingAccess ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#D4AF37" }} />
@@ -232,7 +226,6 @@ export default function BookReader() {
                 </article>
               )}
 
-              {/* Navigation */}
               <div className="flex items-center justify-between mt-12 pt-6 border-t" style={{ borderColor: "#2A2A3E" }}>
                 <button
                   onClick={() => setActiveChapter(Math.max(0, activeChapter - 1))}
@@ -256,7 +249,6 @@ export default function BookReader() {
               </div>
             </>
           ) : (
-            /* PAYWALL */
             <div className="py-16 text-center">
               <Lock className="w-12 h-12 mx-auto mb-4" style={{ color: "#D4AF37" }} />
               <h3 className="text-lg mb-2" style={{ fontFamily: "Cinzel, serif", color: "#F5F0E6" }}>
