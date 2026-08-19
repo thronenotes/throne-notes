@@ -18,6 +18,7 @@ import {
   FileText,
   Flame,
   Hash,
+  User,
 } from "lucide-react";
 
 interface Book {
@@ -35,10 +36,21 @@ interface Entry {
   createdAt: string;
 }
 
+interface PublicBook {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  slug: string;
+  authorName: string | null;
+  authorDisplayName: string | null;
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [publishedBooks, setPublishedBooks] = useState<PublicBook[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,6 +59,7 @@ export default function Dashboard() {
     } else {
       setLoading(false);
     }
+    fetchPublicBooks();
   }, [user]);
 
   const fetchDashboardData = async () => {
@@ -62,6 +75,18 @@ export default function Dashboard() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPublicBooks = async () => {
+    try {
+      const res = await fetch("/api/books/public");
+      if (res.ok) {
+        const data = await res.json();
+        setPublishedBooks(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -97,7 +122,7 @@ export default function Dashboard() {
   ];
 
   const totalWords = entries.reduce((acc, e) => acc + (e.content?.split(/\s+/).filter((w: string) => w.length > 0).length || 0), 0)
-    + books.reduce((acc, b) => acc + 0, 0); // Books word count would need chapters fetch
+    + books.reduce((acc, b) => acc + 0, 0);
 
   const recentEntries = entries.slice(0, 3);
   const recentBooks = books.slice(0, 3);
@@ -228,6 +253,33 @@ export default function Dashboard() {
             );
           })}
         </div>
+
+        {/* Published Works Discovery */}
+        {publishedBooks.length > 0 && (
+          <div className="mb-16">
+            <p className="text-xs uppercase tracking-widest mb-6" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
+              Published Kingdom Works
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {publishedBooks.slice(0, 6).map((book) => (
+                <Link
+                  key={book.id}
+                  href={`/books/${book.slug}`}
+                  className="p-5 rounded-xl border transition-all hover:-translate-y-1 hover:border-[#D4AF3750] group"
+                  style={{ backgroundColor: "rgba(20,20,30,0.4)", borderColor: "#2A2A3E" }}
+                >
+                  <BookOpen className="w-5 h-5 mb-3 transition-colors group-hover:text-[#D4AF37]" style={{ color: "#8A8A9A" }} />
+                  <h3 className="text-sm font-medium mb-1" style={{ color: "#F5F0E6" }}>{book.title}</h3>
+                  <p className="text-xs mb-2" style={{ color: "#8A8A9A" }}>{book.subtitle || "A Kingdom manuscript"}</p>
+                  <div className="flex items-center gap-2 text-[10px]" style={{ color: "#5A5A6A" }}>
+                    <User className="w-3 h-3" />
+                    {book.authorDisplayName || book.authorName || "Unknown"}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Live Stats */}
         {user && !loading && (

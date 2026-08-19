@@ -6,12 +6,12 @@ import {
   Feather, ChevronLeft, Maximize2, Minimize2, Save, FileText,
   Trash2, Plus, Download, Crown, BookOpen, Hash, Sparkles,
   Bold, Italic, Heading1, Heading2, Quote, List, Mic, MicOff, Loader2,
-  CheckCircle, AlertCircle, StickyNote,
+  CheckCircle, AlertCircle, StickyNote, Globe,
 } from "lucide-react";
 import { exportToPDF, exportToMarkdown } from "@/lib/export";
 import { useAuth } from "@/lib/auth-context";
 
-interface Book { id: string; title: string; status: string; }
+interface Book { id: string; title: string; status: string; slug?: string | null; }
 interface Chapter {
   id: string; bookId: string; title: string; content: string;
   status: string; sourceDreamId?: string; updatedAt: string;
@@ -170,16 +170,16 @@ export default function ScribeStudio() {
     try {
       const res = await fetch(`/api/books/${bookId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
-      
+
       const remainingBooks = books.filter((b) => b.id !== bookId);
       setBooks(remainingBooks);
-      
+
       if (selectedBookId === bookId) {
         setChapters([]);
         setSelectedChapter(null);
         setTitle("");
         if (editorRef.current) editorRef.current.innerHTML = "";
-        
+
         if (remainingBooks.length > 0) {
           setSelectedBookId(remainingBooks[0].id);
           await fetchChapters(remainingBooks[0].id);
@@ -191,6 +191,24 @@ export default function ScribeStudio() {
     } catch (e) {
       console.error("Failed to delete book", e);
       alert("Failed to delete book. Try again.");
+    }
+  };
+
+  const handlePublishBook = async (bookId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Publish this book? It will be visible to everyone on your public profile.")) return;
+    try {
+      const res = await fetch(`/api/books/${bookId}/publish`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setBooks((prev) =>
+          prev.map((b) => (b.id === bookId ? { ...b, status: "published", slug: data.slug } : b))
+        );
+        alert(`Published! View: https://thronenotes.com/books/${data.slug}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Publish failed.");
     }
   };
 
@@ -276,10 +294,10 @@ export default function ScribeStudio() {
     try {
       const res = await fetch(`/api/chapters/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
-      
+
       const remaining = chapters.filter((c) => c.id !== id);
       setChapters(remaining);
-      
+
       if (selectedChapter?.id === id) {
         if (remaining.length > 0) {
           selectChapter(remaining[0]);
@@ -572,22 +590,43 @@ export default function ScribeStudio() {
                 <div className="space-y-1">
                   {books.map((book) => (
                     <div key={book.id} className="group relative">
-                      <button onClick={() => { setSelectedBookId(book.id); fetchChapters(book.id); }}
-                        className="w-full text-left px-3 py-2 rounded-md text-xs transition-all flex items-center gap-2 pr-8"
+                      <button
+                        onClick={() => { setSelectedBookId(book.id); fetchChapters(book.id); }}
+                        className="w-full text-left px-3 py-2 rounded-md text-xs transition-all flex items-center gap-2 pr-16"
                         style={selectedBookId === book.id ? { backgroundColor: "rgba(212,175,55,0.1)", color: "#D4AF37", border: "1px solid rgba(212,175,55,0.2)" } : { color: "#8A8A9A" }}
                         onMouseEnter={(e) => { if (selectedBookId !== book.id) { e.currentTarget.style.backgroundColor = "#1E1E2A"; e.currentTarget.style.color = "#F5F0E6"; } }}
                         onMouseLeave={(e) => { if (selectedBookId !== book.id) { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#8A8A9A"; } }}>
                         <BookOpen className="w-3.5 h-3.5 shrink-0" /> 
                         <span className="truncate">{book.title}</span>
+                        {book.status === "published" && (
+                          <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded border" style={{ borderColor: "#04630730", color: "#046307" }}>
+                            LIVE
+                          </span>
+                        )}
                       </button>
-                      {/* Delete book button */}
-                      <button onClick={(e) => handleDeleteBook(book.id, e)}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 transition-all"
-                        style={{ color: "#8A8A9A" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(139,0,0,0.2)"; e.currentTarget.style.color = "#8B0000"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#8A8A9A"; }}>
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+
+                      {/* Action buttons */}
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        {book.status !== "published" && (
+                          <button
+                            onClick={(e) => handlePublishBook(book.id, e)}
+                            className="p-1 rounded text-[10px] font-bold transition-colors"
+                            style={{ color: "#046307" }}
+                            title="Publish book"
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(4,99,7,0.15)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}>
+                            PUBLISH
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDeleteBook(book.id, e)}
+                          className="p-1 rounded transition-colors"
+                          style={{ color: "#8A8A9A" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(139,0,0,0.2)"; e.currentTarget.style.color = "#8B0000"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = "#8A8A9A"; }}>
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

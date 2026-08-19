@@ -15,6 +15,8 @@ import {
   Flame,
   Loader2,
   PenLine,
+  User,
+  Globe,
 } from "lucide-react";
 
 interface Book {
@@ -22,6 +24,7 @@ interface Book {
   title: string;
   status: string;
   updatedAt: string;
+  slug?: string | null;
 }
 
 interface Entry {
@@ -32,10 +35,20 @@ interface Entry {
   createdAt: string;
 }
 
+interface PublicBook {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  slug: string;
+  authorName: string | null;
+  authorDisplayName: string | null;
+}
+
 export default function Dashboard() {
   const { user, loading: authLoading, logout } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [publishedBooks, setPublishedBooks] = useState<PublicBook[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,6 +58,7 @@ export default function Dashboard() {
       return;
     }
     fetchData();
+    fetchPublicBooks();
   }, [user, authLoading]);
 
   const fetchData = async () => {
@@ -72,6 +86,18 @@ export default function Dashboard() {
     }
   };
 
+  const fetchPublicBooks = async () => {
+    try {
+      const res = await fetch("/api/books/public");
+      if (res.ok) {
+        const data = await res.json();
+        setPublishedBooks(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const firstName =
     user?.name?.split(" ")[0] ||
     user?.email?.split("@")[0] ||
@@ -87,6 +113,7 @@ export default function Dashboard() {
 
   const recentEntries = entries.slice(0, 5);
   const lastBook = books[0];
+  const myPublishedBooks = books.filter((b) => b.status === "published");
 
   const shortcuts = [
     { name: "Scribe Studio", href: "/scribe", icon: Feather, color: "#D4AF37" },
@@ -203,6 +230,95 @@ export default function Dashboard() {
             );
           })}
         </div>
+
+        {/* My Books — Read & Edit */}
+        {books.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs uppercase tracking-widest" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
+                My Books
+              </h2>
+              <Link href="/scribe" className="text-xs text-throne-gold hover:text-throne-goldLight transition-colors flex items-center gap-1">
+                Scribe Studio <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {books.map((book) => (
+                <div
+                  key={book.id}
+                  className="p-4 rounded-lg border transition-colors group"
+                  style={{ backgroundColor: "rgba(20,20,30,0.3)", borderColor: "#2A2A3E" }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" style={{ color: book.status === "published" ? "#046307" : "#D4AF37" }} />
+                      <span className="text-sm font-medium" style={{ color: "#F5F0E6" }}>{book.title}</span>
+                    </div>
+                    <span
+                      className="text-[9px] px-2 py-0.5 rounded border"
+                      style={{
+                        borderColor: book.status === "published" ? "#04630730" : "#D4AF3730",
+                        color: book.status === "published" ? "#046307" : "#D4AF37",
+                      }}
+                    >
+                      {book.status === "published" ? "LIVE" : "DRAFT"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-3">
+                    {book.status === "published" && book.slug ? (
+                      <Link
+                        href={`/books/${book.slug}`}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-colors border"
+                        style={{ backgroundColor: "rgba(4,99,7,0.1)", borderColor: "rgba(4,99,7,0.3)", color: "#046307" }}
+                      >
+                        <Globe className="w-3 h-3" /> Read Book
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/scribe"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-colors border"
+                        style={{ backgroundColor: "rgba(212,175,55,0.1)", borderColor: "rgba(212,175,55,0.3)", color: "#D4AF37" }}
+                      >
+                        <PenLine className="w-3 h-3" /> Continue Writing
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Kingdom Library — Published Works from All Authors */}
+        {publishedBooks.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs uppercase tracking-widest" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
+                Kingdom Library
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {publishedBooks.slice(0, 4).map((book) => (
+                <Link
+                  key={book.id}
+                  href={`/books/${book.slug}`}
+                  className="p-4 rounded-lg border transition-all hover:-translate-y-0.5 hover:border-[#D4AF3750] group"
+                  style={{ backgroundColor: "rgba(20,20,30,0.3)", borderColor: "#2A2A3E" }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <BookOpen className="w-4 h-4 transition-colors group-hover:text-[#D4AF37]" style={{ color: "#8A8A9A" }} />
+                    <span className="text-sm font-medium" style={{ color: "#F5F0E6" }}>{book.title}</span>
+                  </div>
+                  <p className="text-xs mb-2" style={{ color: "#8A8A9A" }}>{book.subtitle || "A Kingdom manuscript"}</p>
+                  <div className="flex items-center gap-2 text-[10px]" style={{ color: "#5A5A6A" }}>
+                    <User className="w-3 h-3" />
+                    {book.authorDisplayName || book.authorName || "Unknown Scribe"}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Recent Journal Entries (from Vault) */}
         <div>
