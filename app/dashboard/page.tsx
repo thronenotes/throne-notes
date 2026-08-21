@@ -17,6 +17,7 @@ import {
   PenLine,
   User,
   Globe,
+  Rss,
 } from "lucide-react";
 
 interface Book {
@@ -120,6 +121,7 @@ export default function Dashboard() {
     { name: "Dream Vault", href: "/vault", icon: Moon, color: "#4B0082" },
     { name: "Blueprint Engine", href: "/numerology", icon: Calculator, color: "#046307" },
     { name: "The Oracle", href: "/oracle", icon: Sparkles, color: "#B87333" },
+    { name: "Feed", href: "/feed", icon: Rss, color: "#B87333" },
   ];
 
   if (!user || loading) {
@@ -144,7 +146,32 @@ export default function Dashboard() {
               THRONE ROOM
             </span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Nav Links */}
+            <Link
+              href="/feed"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] transition-colors hover:text-[#D4AF37] hover:bg-[#1E1E2A]"
+              style={{ color: "#8A8A9A" }}
+            >
+              <Rss className="w-3 h-3" /> Feed
+            </Link>
+            <Link
+              href="/"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] transition-colors hover:text-[#D4AF37] hover:bg-[#1E1E2A]"
+              style={{ color: "#8A8A9A" }}
+            >
+              <Globe className="w-3 h-3" /> Discover
+            </Link>
+            <Link
+              href="/settings"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] transition-colors hover:text-[#D4AF37] hover:bg-[#1E1E2A]"
+              style={{ color: "#8A8A9A" }}
+            >
+              <User className="w-3 h-3" /> Profile
+            </Link>
+
+            <div className="h-4 w-px hidden sm:block" style={{ backgroundColor: "#2A2A3E" }} />
+
             <span className="text-xs text-throne-text-muted hidden sm:inline">{user.email}</span>
             <button
               onClick={logout}
@@ -204,7 +231,7 @@ export default function Dashboard() {
         )}
 
         {/* Shortcuts */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-10">
           {shortcuts.map((s) => {
             const Icon = s.icon;
             return (
@@ -296,6 +323,9 @@ export default function Dashboard() {
               <h2 className="text-xs uppercase tracking-widest" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
                 Kingdom Library
               </h2>
+              <Link href="/" className="text-xs text-throne-gold hover:text-throne-goldLight transition-colors flex items-center gap-1">
+                Discover more <ArrowRight className="w-3 h-3" />
+              </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {publishedBooks.slice(0, 4).map((book) => (
