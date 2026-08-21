@@ -4,7 +4,11 @@ import { db } from "@/lib/db";
 import { books } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY not set");
+  return new Stripe(key);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +27,8 @@ export async function POST(req: NextRequest) {
     if (price <= 0) {
       return NextResponse.json({ error: "Book is free" }, { status: 400 });
     }
+
+    const stripe = getStripe();
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],

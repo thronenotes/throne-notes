@@ -3,15 +3,24 @@ import Stripe from "stripe";
 import { db } from "@/lib/db";
 import { purchases, treasury } from "@/lib/db/schema";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY not set");
+  return new Stripe(key);
+}
 
 export async function POST(req: NextRequest) {
   const payload = await req.text();
   const sig = req.headers.get("stripe-signature")!;
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!endpointSecret) {
+    return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
+  }
 
   let event: Stripe.Event;
   try {
+    const stripe = getStripe();
     event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 400 });
