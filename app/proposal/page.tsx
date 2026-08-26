@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import {
   Crown, Sparkles, ArrowRight, ArrowLeft, FileText, Loader2,
   CheckCircle, DollarSign, Clock, Send, Wand2, Palette
@@ -9,6 +10,7 @@ import {
 
 export default function ProposalBuilder() {
   const router = useRouter();
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [creating, setCreating] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -52,7 +54,6 @@ export default function ProposalBuilder() {
     }
     setAiLoading(true);
     try {
-      // Simulated AI generation — replace with real OpenAI call
       await new Promise((r) => setTimeout(r, 1500));
 
       const service = form.serviceType;
@@ -60,13 +61,8 @@ export default function ProposalBuilder() {
 
       setForm((prev) => ({
         ...prev,
-        scopeOfWork: `Based on your request for ${service.toLowerCase()}, we will conduct a comprehensive discovery phase, followed by design iterations, development sprints, and thorough QA testing before deployment.
-
-${brief}`,
-        deliverables: `• Complete ${service} solution
-• Source code and documentation
-• 30-day post-launch support
-• Training session for your team`,
+        scopeOfWork: `Based on your request for ${service.toLowerCase()}, we will conduct a comprehensive discovery phase, followed by design iterations, development sprints, and thorough QA testing before deployment.\n\n${brief}`,
+        deliverables: `• Complete ${service} solution\n• Source code and documentation\n• 30-day post-launch support\n• Training session for your team`,
         timeline: "4–6 weeks from deposit confirmation",
       }));
     } catch (e) {
@@ -77,6 +73,10 @@ ${brief}`,
   };
 
   const handleCreate = async () => {
+    if (!user?.id) {
+      alert("You must be logged in to create a proposal.");
+      return;
+    }
     setCreating(true);
     try {
       const res = await fetch("/api/proposals", {
@@ -84,6 +84,7 @@ ${brief}`,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          creatorId: user.id,
           totalFee: parseFloat(form.totalFee) || 0,
           aiGenerated: true,
         }),
@@ -106,7 +107,6 @@ ${brief}`,
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-[#F5F0E6] font-[Inter,sans-serif]">
-      {/* Header */}
       <div className="border-b border-[#2A2A3E] px-6 py-5 flex items-center justify-between sticky top-0 bg-[#0A0A0F]/90 backdrop-blur-md z-40">
         <div className="flex items-center gap-3">
           <Crown className="w-6 h-6 text-[#D4AF37]" />
@@ -125,7 +125,6 @@ ${brief}`,
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-10">
-        {/* STEP 1: Client */}
         {step === 1 && (
           <div className="animate-fadeIn">
             <h2 className="text-2xl font-bold text-[#F5F0E6] mb-2" style={{ fontFamily: "Cinzel, serif" }}>
@@ -164,7 +163,6 @@ ${brief}`,
           </div>
         )}
 
-        {/* STEP 2: Project */}
         {step === 2 && (
           <div className="animate-fadeIn">
             <h2 className="text-2xl font-bold text-[#F5F0E6] mb-2" style={{ fontFamily: "Cinzel, serif" }}>
@@ -207,7 +205,6 @@ ${brief}`,
           </div>
         )}
 
-        {/* STEP 3: Scope & AI */}
         {step === 3 && (
           <div className="animate-fadeIn">
             <div className="flex items-center justify-between mb-2">
@@ -251,7 +248,6 @@ ${brief}`,
           </div>
         )}
 
-        {/* STEP 4: Pricing & Style */}
         {step === 4 && (
           <div className="animate-fadeIn">
             <h2 className="text-2xl font-bold text-[#F5F0E6] mb-2" style={{ fontFamily: "Cinzel, serif" }}>
@@ -260,7 +256,6 @@ ${brief}`,
             <p className="text-sm text-[#8A8A9A] mb-8">Set your fee and choose the visual style.</p>
 
             <div className="space-y-6">
-              {/* Template Style */}
               <div>
                 <label className={labelBase}>Proposal Style</label>
                 <div className="grid grid-cols-3 gap-3">
@@ -286,7 +281,6 @@ ${brief}`,
                 </div>
               </div>
 
-              {/* Pricing */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelBase}>Total Fee *</label>
@@ -306,7 +300,6 @@ ${brief}`,
                 </div>
               </div>
 
-              {/* Summary Card */}
               <div className="bg-[#14141E] border border-[#2A2A3E] rounded-xl p-5">
                 <div className="flex justify-between items-center mb-3">
                   <span className="text-[#8A8A9A] text-sm">Total Project Value</span>

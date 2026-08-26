@@ -118,7 +118,7 @@ export default function Dashboard() {
 
   const fetchProposals = async () => {
     try {
-      const res = await fetch("/api/proposals");
+      const res = await fetch(`/api/proposals?creatorId=${user?.id || ""}`);
       if (res.ok) {
         const data = await res.json();
         setProposals(Array.isArray(data.contracts) ? data.contracts.slice(0, 3) : []);
@@ -173,7 +173,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#0A0A0F" }}>
-      {/* Header */}
       <header
         className="border-b sticky top-0 z-50"
         style={{ backgroundColor: "rgba(20,20,30,0.8)", borderColor: "#2A2A3E", backdropFilter: "blur(8px)" }}
@@ -223,7 +222,6 @@ export default function Dashboard() {
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-12">
-        {/* Welcome */}
         <div className="mb-10">
           <p className="text-xs uppercase tracking-widest mb-2" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
             Kingdom Operating System
@@ -233,7 +231,6 @@ export default function Dashboard() {
           </h1>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
           <StatBox label="Entries this week" value={entriesThisWeek} />
           <StatBox label="Books in progress" value={booksInProgress} />
@@ -242,7 +239,6 @@ export default function Dashboard() {
           <StatBox label="Proposals pending" value={proposalsPending} />
         </div>
 
-        {/* Continue Writing */}
         {lastBook && (
           <div
             className="p-5 rounded-xl border mb-10 flex items-center justify-between"
@@ -269,7 +265,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Shortcuts */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-10">
           {shortcuts.map((s) => {
             const Icon = s.icon;
@@ -297,7 +292,6 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* My Books — Read & Edit */}
         {books.length > 0 && (
           <div className="mb-10">
             <div className="flex items-center justify-between mb-4">
@@ -355,7 +349,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Proposals Section */}
         {proposals.length > 0 && (
           <div className="mb-10">
             <div className="flex items-center justify-between mb-4">
@@ -396,7 +389,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Kingdom Library — Published Works from All Authors */}
         {publishedBooks.length > 0 && (
           <div className="mb-10">
             <div className="flex items-center justify-between mb-4">
@@ -430,7 +422,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Recent Journal Entries (from Vault) */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs uppercase tracking-widest" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>

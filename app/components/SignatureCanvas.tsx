@@ -8,7 +8,7 @@ interface SignatureCanvasProps {
   height?: number;
 }
 
-export default function SignatureCanvas({ onSave, width = 600, height = 200 }: SignatureCanvasProps) {
+export default function SignatureCanvas({ onSave, width = 600, height = 160 }: SignatureCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);

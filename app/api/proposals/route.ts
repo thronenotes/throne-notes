@@ -2,16 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { contracts } from "@/lib/db/schema";
 import { sendProposalEmail } from "@/lib/email";
-import { auth } from "@/lib/auth";
+import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await req.json();
+
     const year = new Date().getFullYear();
     const random = Math.floor(Math.random() * 9000) + 1000;
     const contractNumber = `CB-${year}-${random}`;
@@ -20,7 +16,7 @@ export async function POST(req: NextRequest) {
       .insert(contracts)
       .values({
         contractNumber,
-        creatorId: session.user.id,
+        creatorId: body.creatorId,
         clientName: body.clientName,
         clientEmail: body.clientEmail,
         clientPhone: body.clientPhone || null,
@@ -49,26 +45,24 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
+    const creatorId = searchParams.get("creatorId");
     const status = searchParams.get("status");
 
-    let query = db.select().from(contracts).where(eq(contracts.creatorId, session.user.id));
-    // Note: if using drizzle-orm, you'd need to import eq from drizzle-orm
-    // For now, fetch all and filter in memory or use proper drizzle syntax
+    let query = db.select().from(contracts);
 
-    const allContracts = await db.select().from(contracts);
-    const userContracts = allContracts.filter((c) => c.creatorId === session.user.id);
-
-    if (status) {
-      return NextResponse.json({ contracts: userContracts.filter((c) => c.status === status) });
+    if (creatorId) {
+      query = query.where(eq(contracts.creatorId, creatorId)) as any;
     }
 
-    return NextResponse.json({ contracts: userContracts });
+    const allContracts = await query;
+    
+    let result = allContracts;
+    if (status) {
+      result = allContracts.filter((c: any) => c.status === status);
+    }
+
+    return NextResponse.json({ contracts: result });
   } catch (error: any) {
     console.error("Fetch proposals error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
