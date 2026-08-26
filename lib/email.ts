@@ -27,7 +27,6 @@ function throneEmail(title: string, headline: string, body: string, cta?: { text
       <td align="center" style="padding:48px 16px;">
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background:#0F0F1A;border:1px solid #1E1E2E;border-radius:16px;overflow:hidden;">
           
-          <!-- Header -->
           <tr>
             <td style="background:linear-gradient(135deg,#0A0A0F 0%,#14141E 100%);padding:40px 40px 32px;text-align:center;border-bottom:1px solid #1E1E2E;">
               <div style="font-family:'Cinzel',serif;font-size:28px;font-weight:700;color:#D4AF37;letter-spacing:0.15em;margin-bottom:8px;">THRONE NOTES</div>
@@ -35,7 +34,6 @@ function throneEmail(title: string, headline: string, body: string, cta?: { text
             </td>
           </tr>
 
-          <!-- Content -->
           <tr>
             <td style="padding:40px;">
               <h1 style="font-family:'Cinzel',serif;font-size:22px;font-weight:600;color:#F5F0E6;margin:0 0 20px;line-height:1.3;">${headline}</h1>
@@ -59,14 +57,12 @@ function throneEmail(title: string, headline: string, body: string, cta?: { text
             </td>
           </tr>
 
-          <!-- Divider -->
           <tr>
             <td style="padding:0 40px;">
               <div style="height:1px;background:#1E1E2E;"></div>
             </td>
           </tr>
 
-          <!-- Footer -->
           <tr>
             <td style="padding:32px 40px;text-align:center;">
               <p style="font-size:12px;color:#8A8A9A;margin:0 0 8px;line-height:1.6;">
@@ -169,6 +165,62 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     from: fromAddress(),
     to: email,
     subject: "Reset your Throne Notes password",
+    html,
+  });
+}
+
+// ─── PROPOSAL EMAIL ───────────────────────────────────────────────
+
+export async function sendProposalEmail(email: string, name: string, contractNumber: string, proposalUrl: string, projectTitle: string) {
+  const html = throneEmail(
+    "Your Proposal is Ready",
+    `${name}, Your Kingdom Proposal Awaits`,
+    `<p style="margin-bottom:16px;">A custom proposal has been prepared exclusively for you.</p>
+     <div style="background:rgba(212,175,55,0.05);border:1px solid rgba(212,175,55,0.15);border-radius:8px;padding:20px;margin:20px 0;">
+       <p style="margin:0 0 8px;color:#8A8A9A;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;">Project</p>
+       <p style="margin:0;color:#D4AF37;font-size:18px;font-weight:600;font-family:'Cinzel',serif;">${projectTitle}</p>
+       <p style="margin:12px 0 0;color:#8A8A9A;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;">Contract</p>
+       <p style="margin:0;color:#F5F0E6;font-size:14px;font-weight:500;">${contractNumber}</p>
+     </div>
+     <p style="margin-bottom:16px;">Review the full proposal, sign digitally, and submit your deposit to begin work. All terms are transparent. No surprises.</p>
+     <p style="margin-bottom:16px;color:#8A8A9A;font-size:13px;">This proposal link is unique to you and will remain active for 30 days.</p>`,
+    { text: "VIEW & SIGN PROPOSAL", url: proposalUrl }
+  );
+
+  if (!resend) {
+    console.log(`[DEV EMAIL] Proposal to ${email}: ${proposalUrl}`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: fromAddress(),
+    to: email,
+    subject: `Proposal ${contractNumber} — ${projectTitle}`,
+    html,
+  });
+}
+
+// ─── PROPOSAL SIGNED NOTIFICATION ─────────────────────────────────
+
+export async function sendProposalSignedEmail(toEmail: string, clientName: string, contractNumber: string, projectTitle: string) {
+  const html = throneEmail(
+    "Proposal Signed — Deposit Required",
+    "A Client Has Signed",
+    `<p style="margin-bottom:16px;"><strong style="color:#D4AF37;">${clientName}</strong> has electronically signed proposal <strong style="color:#D4AF37;">${contractNumber}</strong>.</p>
+     <p style="margin-bottom:16px;">Project: <strong style="color:#F5F0E6;">${projectTitle}</strong></p>
+     <p style="margin-bottom:16px;color:#8A8A9A;">The deposit is now due before work begins. Check your dashboard for details.</p>`,
+    { text: "VIEW DASHBOARD", url: `${baseUrl()}/dashboard/proposals` }
+  );
+
+  if (!resend) {
+    console.log(`[DEV EMAIL] Signed notification for ${contractNumber}`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: fromAddress(),
+    to: toEmail,
+    subject: `Signed: ${contractNumber}`,
     html,
   });
 }

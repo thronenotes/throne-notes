@@ -7,6 +7,7 @@ import {
   Trash2, Plus, Download, Crown, BookOpen, Hash, Sparkles,
   Bold, Italic, Heading1, Heading2, Quote, List, Mic, MicOff, Loader2,
   CheckCircle, AlertCircle, StickyNote, Globe, Lock, DollarSign,
+  Play, Pause, Volume2,
 } from "lucide-react";
 import { exportToPDF, exportToMarkdown } from "@/lib/export";
 import { useAuth } from "@/lib/auth-context";
@@ -20,6 +21,8 @@ interface Note {
   id: string;
   title: string | null;
   content: string;
+  audioUrl?: string | null;
+  audioDuration?: number | null;
   updatedAt: string;
 }
 
@@ -61,6 +64,16 @@ export default function ScribeStudio() {
   const [creatingNote, setCreatingNote] = useState(false);
   const noteAutoSaveRef = useRef<NodeJS.Timeout | null>(null);
   const isNoteDirtyRef = useRef(false);
+
+  // Voice note state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const voiceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -367,28 +380,36 @@ export default function ScribeStudio() {
 
   const selectNote = (note: Note) => {
     if (isNoteDirtyRef.current && selectedNote) {
-      doSaveNote(selectedNote.id, noteTitle, noteContent);
+      doSaveNote(selectedNote.id, noteTitle, noteContent, audioUrl);
     }
     setSelectedNote(note);
     setNoteTitle(note.title || "");
     setNoteContent(note.content || "");
+    setAudioUrl(note.audioUrl || null);
+    setAudioPlaying(false);
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current = null;
+    }
     isNoteDirtyRef.current = false;
     setNoteSaveStatus("idle");
   };
 
-  const doSaveNote = async (id: string, title: string, content: string) => {
+  const doSaveNote = async (id: string, title: string, content: string, audio?: string | null) => {
     if (!id) return;
     setNoteSaveStatus("saving");
     try {
+      const body: any = { title, content };
+      if (audio !== undefined) body.audioUrl = audio;
       const res = await fetch(`/api/notes/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Save failed");
       setNoteSaveStatus("saved");
       isNoteDirtyRef.current = false;
-      setNotesList((prev) => prev.map((n) => n.id === id ? { ...n, title, content, updatedAt: new Date().toISOString() } : n));
+      setNotesList((prev) => prev.map((n) => n.id === id ? { ...n, title, content, audioUrl: audio || n.audioUrl, updatedAt: new Date().toISOString() } : n));
       setTimeout(() => setNoteSaveStatus("idle"), 2000);
     } catch (e) {
       console.error(e);
@@ -398,18 +419,18 @@ export default function ScribeStudio() {
 
   const saveCurrentNote = useCallback(() => {
     if (!selectedNote) return;
-    doSaveNote(selectedNote.id, noteTitle, noteContent);
-  }, [selectedNote, noteTitle, noteContent]);
+    doSaveNote(selectedNote.id, noteTitle, noteContent, audioUrl);
+  }, [selectedNote, noteTitle, noteContent, audioUrl]);
 
   useEffect(() => {
     if (noteAutoSaveRef.current) clearTimeout(noteAutoSaveRef.current);
     noteAutoSaveRef.current = setTimeout(() => {
       if (isNoteDirtyRef.current && selectedNote) {
-        doSaveNote(selectedNote.id, noteTitle, noteContent);
+        doSaveNote(selectedNote.id, noteTitle, noteContent, audioUrl);
       }
     }, 5000);
     return () => { if (noteAutoSaveRef.current) clearTimeout(noteAutoSaveRef.current); };
-  }, [noteTitle, noteContent, selectedNote]);
+  }, [noteTitle, noteContent, selectedNote, audioUrl]);
 
   const handleCreateNote = async () => {
     if (!user || creatingNote) return;
@@ -439,11 +460,168 @@ export default function ScribeStudio() {
         setSelectedNote(null);
         setNoteTitle("");
         setNoteContent("");
+        setAudioUrl(null);
+        setAudioPlaying(false);
+        if (audioPlayerRef.current) {
+          audioPlayerRef.current.pause();
+          audioPlayerRef.current = null;
+        }
       }
     } catch (e) {
       console.error("Failed to delete note", e);
       alert("Failed to delete note. Try again.");
     }
+  };
+
+  // ─── VOICE RECORDING ───────────────────────────────────────────────
+
+  const getSupportedMimeType = () => {
+    const types = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/ogg;codecs=opus",
+    ];
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return undefined;
+  };
+
+  const startRecording = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Your browser does not support voice recording. Use Chrome, Edge, or Firefox.");
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = getSupportedMimeType();
+      const mediaRecorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onerror = (e) => {
+        console.error("MediaRecorder error:", e);
+        alert("Recording error occurred. Try again.");
+        setIsRecording(false);
+        if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (audioChunksRef.current.length === 0) {
+          alert("No audio captured. Try recording for at least 2 seconds.");
+          return;
+        }
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: mimeType || "audio/webm",
+        });
+        await uploadAudio(audioBlob);
+      };
+
+      mediaRecorder.start(1000);
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      voiceTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      console.error("Start recording failed:", err);
+      if (err.name === "NotAllowedError") {
+        alert("Microphone access denied. Click the lock icon in your browser address bar and allow microphone.");
+      } else if (err.name === "NotFoundError") {
+        alert("No microphone found. Connect a microphone and try again.");
+      } else {
+        alert("Could not start recording: " + err.message);
+      }
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+    }
+  };
+
+  const uploadAudio = async (blob: Blob) => {
+    setNoteSaveStatus("saving");
+    try {
+      const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+      const file = new File([blob], `note-${Date.now()}.${ext}`, { type: blob.type });
+      const form = new FormData();
+      form.append("file", file);
+
+      const res = await fetch("/api/upload/audio", { method: "POST", body: form });
+      const data = await res.json();
+
+      if (data.url) {
+        setAudioUrl(data.url);
+        if (selectedNote) {
+          await doSaveNote(selectedNote.id, noteTitle, noteContent, data.url);
+          setNotesList((prev) =>
+            prev.map((n) =>
+              n.id === selectedNote.id
+                ? { ...n, audioUrl: data.url, updatedAt: new Date().toISOString() }
+                : n
+            )
+          );
+        }
+      } else {
+        alert("Upload failed: " + (data.error || "Unknown error"));
+      }
+    } catch (e) {
+      console.error("Upload failed:", e);
+      alert("Failed to upload voice note. Check your connection.");
+      setNoteSaveStatus("idle");
+    }
+  };
+
+  const toggleAudioPlayback = () => {
+    if (!audioUrl) return;
+    if (!audioPlayerRef.current) {
+      audioPlayerRef.current = new Audio(audioUrl);
+      audioPlayerRef.current.onended = () => setAudioPlaying(false);
+      audioPlayerRef.current.onerror = () => {
+        alert("Could not play audio. The file may be corrupted.");
+        setAudioPlaying(false);
+      };
+    }
+    if (audioPlaying) {
+      audioPlayerRef.current.pause();
+      setAudioPlaying(false);
+    } else {
+      audioPlayerRef.current.play().catch((e) => {
+        console.error("Playback failed:", e);
+        alert("Could not play audio.");
+      });
+      setAudioPlaying(true);
+    }
+  };
+
+  const deleteAudio = async () => {
+    if (!selectedNote || !audioUrl) return;
+    if (!confirm("Delete this voice recording?")) return;
+    setAudioUrl(null);
+    setAudioPlaying(false);
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current = null;
+    }
+    await doSaveNote(selectedNote.id, noteTitle, noteContent, null);
+    setNotesList((prev) => prev.map((n) => (n.id === selectedNote.id ? { ...n, audioUrl: null } : n)));
   };
 
   // ─── RENDER ────────────────────────────────────────────────────────
@@ -818,15 +996,23 @@ export default function ScribeStudio() {
                     <span className="text-xs font-medium truncate" style={{ color: selectedNote?.id === note.id ? "#F5F0E6" : "#8A8A9A" }}>
                       {note.title || "Untitled Note"}
                     </span>
-                    {selectedNote?.id === note.id && (
-                      <button onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}
-                        className="p-1 rounded opacity-0 group-hover:opacity-100 transition-all" style={{ color: "#8A8A9A" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#8B0000"; }}>
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {note.audioUrl && <Volume2 className="w-3 h-3" style={{ color: "#D4AF37" }} />}
+                      {selectedNote?.id === note.id && (
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteNote(note.id); }}
+                          className="p-1 rounded opacity-0 group-hover:opacity-100 transition-all" style={{ color: "#8A8A9A" }}
+                          onMouseEnter={(e) => { e.currentTarget.style.color = "#8B0000"; }}>
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-[10px] line-clamp-2" style={{ color: "#8A8A9A" }}>{note.content || "No content"}</p>
+                  {note.audioUrl && (
+                    <span className="text-[9px] mt-1 inline-flex items-center gap-1" style={{ color: "#D4AF37" }}>
+                      <Mic className="w-3 h-3" /> Voice note
+                    </span>
+                  )}
                   <p className="text-[9px] mt-1.5" style={{ color: "#5A5A6A" }}>
                     {new Date(note.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </p>
@@ -843,6 +1029,49 @@ export default function ScribeStudio() {
                     placeholder="Note title..."
                     className="w-full bg-transparent text-xl outline-none" style={{ color: "#F5F0E6", fontFamily: "Cinzel, serif" }} />
                 </div>
+
+                {/* Voice Recorder Bar */}
+                <div className="px-6 py-2 flex items-center gap-3">
+                  {!isRecording ? (
+                    <button
+                      onClick={startRecording}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-colors border"
+                      style={{ backgroundColor: "rgba(139,0,0,0.1)", borderColor: "rgba(139,0,0,0.3)", color: "#8B0000" }}
+                    >
+                      <Mic className="w-3 h-3" /> Record Voice
+                    </button>
+                  ) : (
+                    <button
+                      onClick={stopRecording}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-colors border animate-pulse"
+                      style={{ backgroundColor: "rgba(139,0,0,0.2)", borderColor: "#8B0000", color: "#fff" }}
+                    >
+                      <MicOff className="w-3 h-3" /> Stop ({Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, "0")})
+                    </button>
+                  )}
+
+                  {audioUrl && !isRecording && (
+                    <>
+                      <button
+                        onClick={toggleAudioPlayback}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-colors border"
+                        style={{ backgroundColor: "rgba(212,175,55,0.1)", borderColor: "rgba(212,175,55,0.3)", color: "#D4AF37" }}
+                      >
+                        {audioPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                        {audioPlaying ? "Pause" : "Play"}
+                      </button>
+                      <button
+                        onClick={deleteAudio}
+                        className="p-1.5 rounded transition-colors"
+                        style={{ color: "#8A8A9A" }}
+                        title="Delete recording"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </>
+                  )}
+                </div>
+
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                   <textarea
                     value={noteContent}

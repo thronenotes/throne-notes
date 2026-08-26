@@ -18,6 +18,10 @@ import {
   User,
   Globe,
   Rss,
+  FileText,
+  Send,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
 
 interface Book {
@@ -45,11 +49,23 @@ interface PublicBook {
   authorDisplayName: string | null;
 }
 
+interface Proposal {
+  id: string;
+  contractNumber: string;
+  clientName: string;
+  projectTitle: string;
+  serviceType: string;
+  totalFee: string;
+  status: string;
+  createdAt: string;
+}
+
 export default function Dashboard() {
   const { user, loading: authLoading, logout } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [publishedBooks, setPublishedBooks] = useState<PublicBook[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,6 +76,7 @@ export default function Dashboard() {
     }
     fetchData();
     fetchPublicBooks();
+    fetchProposals();
   }, [user, authLoading]);
 
   const fetchData = async () => {
@@ -99,6 +116,18 @@ export default function Dashboard() {
     }
   };
 
+  const fetchProposals = async () => {
+    try {
+      const res = await fetch("/api/proposals");
+      if (res.ok) {
+        const data = await res.json();
+        setProposals(Array.isArray(data.contracts) ? data.contracts.slice(0, 3) : []);
+      }
+    } catch (e) {
+      console.error("Proposals fetch failed:", e);
+    }
+  };
+
   const firstName =
     user?.name?.split(" ")[0] ||
     user?.email?.split("@")[0] ||
@@ -111,6 +140,7 @@ export default function Dashboard() {
   ).length;
   const booksInProgress = books.filter((b) => b.status !== "published").length;
   const dreamsRecorded = entries.filter((e) => e.entryType === "dream").length;
+  const proposalsPending = proposals.filter((p) => p.status === "draft" || p.status === "sent").length;
 
   const recentEntries = entries.slice(0, 5);
   const lastBook = books[0];
@@ -122,7 +152,16 @@ export default function Dashboard() {
     { name: "Blueprint Engine", href: "/numerology", icon: Calculator, color: "#046307" },
     { name: "The Oracle", href: "/oracle", icon: Sparkles, color: "#B87333" },
     { name: "Feed", href: "/feed", icon: Rss, color: "#B87333" },
+    { name: "Proposal Forge", href: "/proposal", icon: FileText, color: "#D4AF37" },
   ];
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "signed": return <CheckCircle className="w-3 h-3 text-[#046307]" />;
+      case "sent": return <Send className="w-3 h-3 text-[#D4AF37]" />;
+      default: return <Clock className="w-3 h-3 text-[#8A8A9A]" />;
+    }
+  };
 
   if (!user || loading) {
     return (
@@ -147,7 +186,6 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            {/* Nav Links */}
             <Link
               href="/feed"
               className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] transition-colors hover:text-[#D4AF37] hover:bg-[#1E1E2A]"
@@ -196,11 +234,12 @@ export default function Dashboard() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
           <StatBox label="Entries this week" value={entriesThisWeek} />
           <StatBox label="Books in progress" value={booksInProgress} />
           <StatBox label="Dreams recorded" value={dreamsRecorded} />
           <StatBox label="Total entries" value={entries.length} />
+          <StatBox label="Proposals pending" value={proposalsPending} />
         </div>
 
         {/* Continue Writing */}
@@ -231,7 +270,7 @@ export default function Dashboard() {
         )}
 
         {/* Shortcuts */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-10">
           {shortcuts.map((s) => {
             const Icon = s.icon;
             return (
@@ -311,6 +350,47 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Proposals Section */}
+        {proposals.length > 0 && (
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs uppercase tracking-widest" style={{ color: "#8A8A9A", fontFamily: "Cinzel, serif" }}>
+                Recent Proposals
+              </h2>
+              <Link href="/dashboard/proposals" className="text-xs text-throne-gold hover:text-throne-goldLight transition-colors flex items-center gap-1">
+                All proposals <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {proposals.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/proposal/${p.id}`}
+                  target="_blank"
+                  className="block p-4 rounded-lg border transition-colors hover:border-[#D4AF37]/30"
+                  style={{ backgroundColor: "rgba(20,20,30,0.3)", borderColor: "#2A2A3E" }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4" style={{ color: "#D4AF37" }} />
+                      <div>
+                        <span className="text-sm font-medium" style={{ color: "#F5F0E6" }}>{p.projectTitle}</span>
+                        <p className="text-[10px] text-[#8A8A9A]">{p.clientName} — {p.contractNumber}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold" style={{ color: "#D4AF37" }}>${Number(p.totalFee).toLocaleString()}</span>
+                      <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border" style={{ borderColor: "#2A2A3E", color: "#8A8A9A" }}>
+                        {getStatusIcon(p.status)} {p.status}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
           </div>

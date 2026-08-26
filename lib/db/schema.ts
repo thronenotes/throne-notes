@@ -18,6 +18,7 @@ export const bookStatusEnum = pgEnum("book_status", ["draft", "editing", "publis
 export const chapterStatusEnum = pgEnum("chapter_status", ["draft", "editing", "published"]);
 export const entryTypeEnum = pgEnum("entry_type", ["dream", "revelation", "battle", "decree", "teaching"]);
 export const spiritualStateEnum = pgEnum("spiritual_state", ["aligned", "drained", "anointed", "warring", "resting", "interceding"]);
+export const contractStatusEnum = pgEnum("contract_status", ["draft", "sent", "viewed", "signed", "deposit_paid", "completed", "cancelled"]);
 
 // ─── PROFILES ──────────────────────────────────────────────────────
 
@@ -36,12 +37,10 @@ export const profiles = pgTable("profiles", {
   expressionNum: integer("expression_num"),
   soulUrgeNum: integer("soul_urge_num"),
 
-  // ─── EMAIL AUTH FIELDS ───────────────────────────────────────
   emailVerified: timestamp("email_verified", { withTimezone: true }),
   verificationToken: text("verification_token"),
   resetPasswordToken: text("reset_password_token"),
   resetPasswordExpires: timestamp("reset_password_expires", { withTimezone: true }),
-  // ─────────────────────────────────────────────────────────────
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -102,7 +101,6 @@ export const journalEntries = pgTable("journal_entries", {
   isPrivate: boolean("is_private").default(true),
   isShared: boolean("is_shared").default(false),
 
-  // Oracle AI
   oracleSymbols: text("oracle_symbols"),
   oracleMeaning: text("oracle_meaning"),
   oracleMessage: text("oracle_message"),
@@ -121,6 +119,8 @@ export const notes = pgTable("notes", {
   userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
   title: text("title"),
   content: text("content").notNull().default(""),
+  audioUrl: text("audio_url"),
+  audioDuration: integer("audio_duration").default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
@@ -152,7 +152,6 @@ export const followers = pgTable("followers", {
 });
 
 // ─── PURCHASES ─────────────────────────────────────────────────────
-// Who bought what book. Unlocks paid content.
 
 export const purchases = pgTable("purchases", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -220,6 +219,42 @@ export const courtAttendees = pgTable("court_attendees", {
   leftAt: timestamp("left_at", { withTimezone: true }),
 });
 
+// ─── CONTRACTS / PROPOSALS ─────────────────────────────────────────
+
+export const contracts = pgTable("contracts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  contractNumber: text("contract_number").notNull().unique(),
+  creatorId: uuid("creator_id").references(() => profiles.id).notNull(),
+
+  clientName: text("client_name").notNull(),
+  clientEmail: text("client_email").notNull(),
+  clientPhone: text("client_phone"),
+  clientCompany: text("client_company"),
+
+  projectTitle: text("project_title").notNull(),
+  serviceType: text("service_type").notNull(),
+  projectBrief: text("project_brief").notNull(),
+  scopeOfWork: text("scope_of_work"),
+  deliverables: text("deliverables"),
+  timeline: text("timeline"),
+
+  totalFee: decimal("total_fee", { precision: 10, scale: 2 }).notNull().default("0"),
+  depositPercent: integer("deposit_percent").notNull().default(50),
+  currency: text("currency").default("USD"),
+  stripePaymentLink: text("stripe_payment_link"),
+
+  status: contractStatusEnum("status").default("draft"),
+  signatureData: text("signature_data"),
+  signedAt: timestamp("signed_at", { withTimezone: true }),
+  viewedAt: timestamp("viewed_at", { withTimezone: true }),
+
+  aiGenerated: boolean("ai_generated").default(false),
+  templateStyle: text("template_style").default("cinematic"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 // ─── TYPE EXPORTS ──────────────────────────────────────────────────
 
 export type Profile = typeof profiles.$inferSelect;
@@ -240,3 +275,5 @@ export type PropheticInboxItem = typeof propheticInbox.$inferSelect;
 export type TreasuryItem = typeof treasury.$inferSelect;
 export type Court = typeof courts.$inferSelect;
 export type CourtAttendee = typeof courtAttendees.$inferSelect;
+export type Contract = typeof contracts.$inferSelect;
+export type NewContract = typeof contracts.$inferInsert;
