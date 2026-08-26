@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import {
   Crown, FileText, Send, CheckCircle, Clock, Loader2,
-  ExternalLink, Search, Filter, Plus, DollarSign, Eye,
+  ExternalLink, Search, Plus, DollarSign, Eye,
   AlertCircle, TrendingUp, Users
 } from "lucide-react";
 
@@ -25,8 +24,6 @@ interface Proposal {
 }
 
 export default function ProposalsDashboard() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -73,7 +70,7 @@ export default function ProposalsDashboard() {
       sent: { bg: "bg-[#D4AF37]/10", color: "text-[#D4AF37]", icon: Send, label: "Sent" },
       viewed: { bg: "bg-[#4B0082]/10", color: "text-[#4B0082]", icon: Eye, label: "Viewed" },
       signed: { bg: "bg-[#046307]/10", color: "text-[#046307]", icon: CheckCircle, label: "Signed" },
-      deposit_paid: { bg: "bg-[#D4AF37]/10", color: "text-[#D4AF37]", icon: DollarSign, label: "Deposit Paid" },
+      deposit_paid: { bg: "bg-[#D4AF37]/10", color: "text-[#D4AF37]", icon: CheckCircle, label: "Deposit Paid" },
     };
     const s = styles[status] || styles.draft;
     const Icon = s.icon;
@@ -104,7 +101,6 @@ export default function ProposalsDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-[#F5F0E6] font-[Inter,sans-serif]">
-      {/* Header */}
       <header className="border-b border-[#2A2A3E] px-6 py-5 flex items-center justify-between sticky top-0 bg-[#0A0A0F]/90 backdrop-blur-md z-40">
         <div className="flex items-center gap-3">
           <Crown className="w-6 h-6 text-[#D4AF37]" />
@@ -124,7 +120,6 @@ export default function ProposalsDashboard() {
       </header>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
           {[
             { label: "Total", value: stats.total, color: "text-[#D4AF37]", icon: FileText },
@@ -142,7 +137,6 @@ export default function ProposalsDashboard() {
           ))}
         </div>
 
-        {/* Filters */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
           <div className="relative flex-1 max-w-sm w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A8A9A]" />
@@ -171,7 +165,6 @@ export default function ProposalsDashboard() {
           </div>
         </div>
 
-        {/* Table */}
         {loading ? (
           <div className="text-center py-20">
             <Loader2 className="w-8 h-8 text-[#D4AF37] animate-spin mx-auto" />
