@@ -4,9 +4,10 @@ import { contracts } from "@/lib/db/schema";
 import { sendProposalEmail } from "@/lib/email";
 import { eq } from "drizzle-orm";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const result = await db.select().from(contracts).where(eq(contracts.id, params.id));
+    const { id } = await params;
+    const result = await db.select().from(contracts).where(eq(contracts.id, id));
 
     if (result.length === 0) {
       return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     await db
       .update(contracts)
       .set({ status: "sent", updatedAt: new Date() })
-      .where(eq(contracts.id, params.id));
+      .where(eq(contracts.id, id));
 
     return NextResponse.json({ success: true, message: "Proposal sent" });
   } catch (error: any) {

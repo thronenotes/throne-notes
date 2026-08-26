@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { contracts } from "@/lib/db/schema";
-import { sendProposalSignedEmail } from "@/lib/email";
 import { eq } from "drizzle-orm";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const body = await req.json();
 
     if (!body.signatureData) {
@@ -20,18 +20,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         signedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(contracts.id, params.id))
+      .where(eq(contracts.id, id))
       .returning();
-
-    // Notify creator
-    const creatorResult = await db
-      .select()
-      .from(contracts)
-      .where(eq(contracts.id, params.id));
-
-    // You'd need to fetch creator email from profiles table here
-    // For now, log it
-    console.log(`Proposal ${updated.contractNumber} signed by ${updated.clientName}`);
 
     return NextResponse.json({ success: true, contract: updated });
   } catch (error: any) {
