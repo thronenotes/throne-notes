@@ -19,6 +19,15 @@ export const chapterStatusEnum = pgEnum("chapter_status", ["draft", "editing", "
 export const entryTypeEnum = pgEnum("entry_type", ["dream", "revelation", "battle", "decree", "teaching"]);
 export const spiritualStateEnum = pgEnum("spiritual_state", ["aligned", "drained", "anointed", "warring", "resting", "interceding"]);
 export const contractStatusEnum = pgEnum("contract_status", ["draft", "sent", "viewed", "signed", "deposit_paid", "completed", "cancelled"]);
+export const saleCategoryEnum = pgEnum("sale_category", [
+  "web_development",
+  "mobile_app",
+  "auto_parts",
+  "consulting",
+  "branding",
+  "marketing",
+  "other",
+]);
 
 // ─── PROFILES ──────────────────────────────────────────────────────
 
@@ -255,6 +264,27 @@ export const contracts = pgTable("contracts", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+// ─── SALES / BOOKKEEPING ───────────────────────────────────────────
+
+export const sales = pgTable("sales", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => profiles.id).notNull(),
+
+  itemName: text("item_name").notNull(),
+  category: saleCategoryEnum("category").default("other"),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  costPrice: decimal("cost_price", { precision: 10, scale: 2 }).default("0"),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  profit: decimal("profit", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").default("USD"),
+  notes: text("notes"),
+  saleDate: date("sale_date").defaultNow(),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 // ─── TYPE EXPORTS ──────────────────────────────────────────────────
 
 export type Profile = typeof profiles.$inferSelect;
@@ -277,3 +307,5 @@ export type Court = typeof courts.$inferSelect;
 export type CourtAttendee = typeof courtAttendees.$inferSelect;
 export type Contract = typeof contracts.$inferSelect;
 export type NewContract = typeof contracts.$inferInsert;
+export type Sale = typeof sales.$inferSelect;
+export type NewSale = typeof sales.$inferInsert;

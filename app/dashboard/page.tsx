@@ -22,6 +22,7 @@ import {
   Send,
   CheckCircle,
   Clock,
+  DollarSign,
 } from "lucide-react";
 
 interface Book {
@@ -153,6 +154,7 @@ export default function Dashboard() {
     { name: "The Oracle", href: "/oracle", icon: Sparkles, color: "#B87333" },
     { name: "Feed", href: "/feed", icon: Rss, color: "#B87333" },
     { name: "Proposal Forge", href: "/proposal", icon: FileText, color: "#D4AF37" },
+    { name: "Treasury Ledger", href: "/dashboard/sales", icon: DollarSign, color: "#046307" },
   ];
 
   const getStatusIcon = (status: string) => {
@@ -265,7 +267,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-4 mb-10">
           {shortcuts.map((s) => {
             const Icon = s.icon;
             return (
