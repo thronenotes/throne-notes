@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import {
   Crown, Plus, Trash2, TrendingUp, TrendingDown, DollarSign,
-  Calendar, Package, Loader2, X, ChevronDown, BarChart3
+  Calendar, Package, Loader2, X, BarChart3
 } from "lucide-react";
 
 interface Sale {
@@ -43,6 +43,28 @@ const categories = [
   { key: "marketing", label: "Marketing", color: "#2E86AB" },
   { key: "other", label: "Other", color: "#8A8A9A" },
 ];
+
+const currencySymbols: Record<string, string> = {
+  USD: "$",
+  GHS: "₵",
+  EUR: "€",
+  GBP: "£",
+  NGN: "₦",
+  ZAR: "R",
+  CAD: "C$",
+  AUD: "A$",
+  JPY: "¥",
+  CNY: "¥",
+};
+
+function getSymbol(currency: string) {
+  return currencySymbols[currency] || currency + " ";
+}
+
+function formatMoney(amount: number, currency: string) {
+  const symbol = getSymbol(currency);
+  return `${symbol}${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
 
 export default function SalesDashboard() {
   const { user } = useAuth();
@@ -124,6 +146,9 @@ export default function SalesDashboard() {
   const getCategoryLabel = (key: string) => categories.find(c => c.key === key)?.label || key;
   const getCategoryColor = (key: string) => categories.find(c => c.key === key)?.color || "#8A8A9A";
 
+  // Use the most common currency for stats display, or default to USD
+  const primaryCurrency = sales.length > 0 ? sales[0].currency : "USD";
+
   const profitMargin = stats && stats.totalRevenue > 0
     ? ((stats.totalProfit / stats.totalRevenue) * 100).toFixed(1)
     : "0";
@@ -155,13 +180,13 @@ export default function SalesDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <StatCard
               label="Total Revenue"
-              value={`$${stats.totalRevenue.toLocaleString()}`}
+              value={formatMoney(stats.totalRevenue, primaryCurrency)}
               color="#D4AF37"
               icon={DollarSign}
             />
             <StatCard
               label="Total Profit"
-              value={`$${stats.totalProfit.toLocaleString()}`}
+              value={formatMoney(stats.totalProfit, primaryCurrency)}
               color="#046307"
               icon={TrendingUp}
             />
@@ -188,11 +213,11 @@ export default function SalesDashboard() {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-xs text-[#8A8A9A]">Revenue</p>
-                  <p className="text-lg font-bold text-[#D4AF37]">${stats.thisWeekRevenue.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-[#D4AF37]">{formatMoney(stats.thisWeekRevenue, primaryCurrency)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[#8A8A9A]">Profit</p>
-                  <p className="text-lg font-bold text-[#046307]">${stats.thisWeekProfit.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-[#046307]">{formatMoney(stats.thisWeekProfit, primaryCurrency)}</p>
                 </div>
               </div>
             </div>
@@ -201,11 +226,11 @@ export default function SalesDashboard() {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-xs text-[#8A8A9A]">Revenue</p>
-                  <p className="text-lg font-bold text-[#D4AF37]">${stats.thisMonthRevenue.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-[#D4AF37]">{formatMoney(stats.thisMonthRevenue, primaryCurrency)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-[#8A8A9A]">Profit</p>
-                  <p className="text-lg font-bold text-[#046307]">${stats.thisMonthProfit.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-[#046307]">{formatMoney(stats.thisMonthProfit, primaryCurrency)}</p>
                 </div>
               </div>
             </div>
@@ -264,11 +289,11 @@ export default function SalesDashboard() {
                       </td>
                       <td className="px-4 py-4 text-center text-[#8A8A9A]">{sale.quantity}</td>
                       <td className="px-4 py-4 text-right text-[#D4AF37] font-bold">
-                        ${Number(sale.totalPrice).toLocaleString()}
+                        {formatMoney(Number(sale.totalPrice), sale.currency)}
                       </td>
                       <td className="px-4 py-4 text-right">
                         <span className={Number(sale.profit) >= 0 ? "text-[#046307] font-bold" : "text-[#8B0000] font-bold"}>
-                          ${Number(sale.profit).toLocaleString()}
+                          {formatMoney(Number(sale.profit), sale.currency)}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-center text-[10px] text-[#8A8A9A]">
@@ -393,6 +418,12 @@ export default function SalesDashboard() {
                     <option value="GHS" className="bg-[#0A0A0F]">GHS (₵)</option>
                     <option value="EUR" className="bg-[#0A0A0F]">EUR (€)</option>
                     <option value="GBP" className="bg-[#0A0A0F]">GBP (£)</option>
+                    <option value="NGN" className="bg-[#0A0A0F]">NGN (₦)</option>
+                    <option value="ZAR" className="bg-[#0A0A0F]">ZAR (R)</option>
+                    <option value="CAD" className="bg-[#0A0A0F]">CAD (C$)</option>
+                    <option value="AUD" className="bg-[#0A0A0F]">AUD (A$)</option>
+                    <option value="JPY" className="bg-[#0A0A0F]">JPY (¥)</option>
+                    <option value="CNY" className="bg-[#0A0A0F]">CNY (¥)</option>
                   </select>
                 </div>
                 <div>
@@ -427,13 +458,13 @@ export default function SalesDashboard() {
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-[#8A8A9A]">Revenue:</span>
                     <span className="text-[#D4AF37] font-bold">
-                      ${(Number(form.unitPrice) * form.quantity).toLocaleString()}
+                      {formatMoney(Number(form.unitPrice) * form.quantity, form.currency)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-[#8A8A9A]">Est. Profit:</span>
                     <span className={Number(form.costPrice) > 0 ? "text-[#046307] font-bold" : "text-[#8A8A9A] font-bold"}>
-                      ${(Number(form.unitPrice) * form.quantity - Number(form.costPrice || 0) * form.quantity).toLocaleString()}
+                      {formatMoney(Number(form.unitPrice) * form.quantity - Number(form.costPrice || 0) * form.quantity, form.currency)}
                     </span>
                   </div>
                 </div>

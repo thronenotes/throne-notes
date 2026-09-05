@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sales } from "@/lib/db/schema";
-import { eq, gte, lte, and, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+
+function safeDate(value: string | Date | null): Date {
+  if (!value) return new Date();
+  return new Date(value);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,8 +40,6 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
 
     let query = db.select().from(sales);
     
@@ -46,18 +49,16 @@ export async function GET(req: NextRequest) {
 
     const allSales = await query.orderBy(sql`${sales.saleDate} desc`);
 
-    // Calculate stats
     const totalRevenue = allSales.reduce((sum, s) => sum + Number(s.totalPrice), 0);
     const totalProfit = allSales.reduce((sum, s) => sum + Number(s.profit), 0);
     const totalCost = allSales.reduce((sum, s) => sum + (Number(s.costPrice) * s.quantity), 0);
 
-    // Weekly breakdown
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const thisWeek = allSales.filter(s => new Date(s.saleDate || s.createdAt) >= weekAgo);
-    const thisMonth = allSales.filter(s => new Date(s.saleDate || s.createdAt) >= monthAgo);
+    const thisWeek = allSales.filter(s => safeDate(s.saleDate) >= weekAgo);
+    const thisMonth = allSales.filter(s => safeDate(s.saleDate) >= monthAgo);
 
     return NextResponse.json({
       sales: allSales,
