@@ -20,41 +20,27 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build Next.js app
+      - name: Build web assets
         run: |
           mkdir -p dist
           echo '<html><body style="background:#0A0A0F;color:#D4AF37;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;"><h1>Throne Notes Loading...</h1></body></html>' > dist/index.html
           npm run build || true
 
-      - name: Setup iOS platform
+      - name: Add iOS platform
         run: |
-          if [ -d "ios" ]; then
-            rm -rf ios
-          fi
+          rm -rf ios
           npx cap add ios
 
-      - name: Fix iOS deployment target
+      - name: Fix iOS deployment target in Podfile
         run: |
-          # Update Podfile to require iOS 14 (Capacitor minimum)
-          sed -i '' 's/platform :ios, .*/platform :ios, '14.0'/g' ios/App/Podfile
-          
-          # Also update the Xcode project deployment target
-          cd ios/App
-          ruby -e "
-            require 'xcodeproj'
-            project = Xcodeproj::Project.open('App.xcodeproj')
-            project.targets.each do |target|
-              target.build_configurations.each do |config|
-                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
-              end
-            end
-            project.save
-          "
+          # Capacitor requires iOS 14+. Fix the Podfile before pod install.
+          perl -i -pe "s/platform :ios, '.*'/platform :ios, '14.0'/g" ios/App/Podfile
+          cat ios/App/Podfile
 
-      - name: Sync Capacitor
+      - name: Sync Capacitor iOS
         run: npx cap sync ios
 
-      - name: Build iOS (Simulator)
+      - name: Build iOS Simulator
         run: |
           cd ios/App
           xcodebuild build \
