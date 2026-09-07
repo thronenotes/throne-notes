@@ -38,6 +38,12 @@ jobs:
           echo "=== Fixed Podfile ==="
           cat ios/App/Podfile
 
+      - name: Fix App deployment target
+        run: |
+          perl -i -pe 's/IPHONEOS_DEPLOYMENT_TARGET = 14\.0/IPHONEOS_DEPLOYMENT_TARGET = 15.0/g' ios/App/App.xcodeproj/project.pbxproj
+          echo "=== Fixed project.pbxproj ==="
+          grep -n "IPHONEOS_DEPLOYMENT_TARGET" ios/App/App.xcodeproj/project.pbxproj || true
+
       - name: Install CocoaPods
         run: |
           cd ios/App
