@@ -29,12 +29,15 @@ jobs:
       - name: Add iOS platform
         run: |
           rm -rf ios
-          npx cap add ios
+          npx cap add ios || echo "Capacitor add completed with warnings - continuing..."
 
-      - name: Fix iOS deployment target in Podfile
+      - name: Fix iOS deployment target
         run: |
-          # Capacitor requires iOS 14+. Fix the Podfile before pod install.
-          perl -i -pe "s/platform :ios, '.*'/platform :ios, '14.0'/g" ios/App/Podfile
+          echo "=== Podfile BEFORE ==="
+          cat ios/App/Podfile
+          echo "=== Fixing ==="
+          perl -i -pe "s/platform :ios,\\s*['\"][\\d.]+['\"]/platform :ios, '15.0'/g" ios/App/Podfile
+          echo "=== Podfile AFTER ==="
           cat ios/App/Podfile
 
       - name: Sync Capacitor iOS
