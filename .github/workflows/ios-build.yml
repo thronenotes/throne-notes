@@ -16,6 +16,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm install
@@ -29,19 +30,21 @@ jobs:
       - name: Add iOS platform
         run: |
           rm -rf ios
-          npx cap add ios || echo "Capacitor add completed with warnings - continuing..."
+          npx cap add ios || echo "Pod install failed - will fix and retry"
 
       - name: Fix iOS deployment target
         run: |
-          echo "=== Podfile BEFORE ==="
-          cat ios/App/Podfile
-          echo "=== Fixing ==="
           perl -i -pe "s/platform :ios,\\s*['\"][\\d.]+['\"]/platform :ios, '15.0'/g" ios/App/Podfile
-          echo "=== Podfile AFTER ==="
+          echo "=== Fixed Podfile ==="
           cat ios/App/Podfile
 
-      - name: Sync Capacitor iOS
-        run: npx cap sync ios
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install --repo-update
+
+      - name: Copy assets to iOS
+        run: npx cap copy ios
 
       - name: Build iOS Simulator
         run: |
