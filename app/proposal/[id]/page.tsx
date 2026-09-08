@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import {
   Crown, CheckCircle, Loader2, AlertCircle, FileText, Shield,
-  Clock, DollarSign, Send, Sparkles, ChevronDown, Printer
+  Clock, DollarSign, Send, Sparkles, ChevronDown, Printer, ArrowLeft
 } from "lucide-react";
 import SignatureCanvas from "@/components/SignatureCanvas";
 
@@ -108,6 +109,16 @@ export default function ProposalView() {
           border: 1px solid rgba(212, 175, 55, 0.1);
         }
       `}</style>
+
+      {/* Back Button */}
+      <div className="no-print fixed top-5 left-5 z-50">
+        <Link
+          href="/dashboard/proposals"
+          className="flex items-center gap-2 px-4 py-2 bg-[#14141E]/80 backdrop-blur-md border border-[#2A2A3E] rounded-lg text-xs font-bold text-[#8A8A9A] hover:text-[#D4AF37] hover:border-[#D4AF37]/30 transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Link>
+      </div>
 
       {/* HERO */}
       <section className="relative min-h-[70vh] flex flex-col items-center justify-center text-center px-6 overflow-hidden">

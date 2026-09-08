@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import {
   Crown, Plus, Trash2, TrendingUp, TrendingDown, DollarSign,
-  Calendar, Package, Loader2, X, BarChart3
+  Calendar, Package, Loader2, X, BarChart3, ArrowLeft
 } from "lucide-react";
 
 interface Sale {
@@ -146,7 +146,6 @@ export default function SalesDashboard() {
   const getCategoryLabel = (key: string) => categories.find(c => c.key === key)?.label || key;
   const getCategoryColor = (key: string) => categories.find(c => c.key === key)?.color || "#8A8A9A";
 
-  // Use the most common currency for stats display, or default to USD
   const primaryCurrency = sales.length > 0 ? sales[0].currency : "USD";
 
   const profitMargin = stats && stats.totalRevenue > 0
@@ -158,6 +157,9 @@ export default function SalesDashboard() {
       {/* Header */}
       <header className="border-b border-[#2A2A3E] px-6 py-5 flex items-center justify-between sticky top-0 bg-[#0A0A0F]/90 backdrop-blur-md z-40">
         <div className="flex items-center gap-3">
+          <Link href="/dashboard" className="text-[#8A8A9A] hover:text-[#D4AF37] transition-colors p-1">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
           <Crown className="w-6 h-6 text-[#D4AF37]" />
           <div>
             <h1 className="text-sm font-bold tracking-wider text-[#D4AF37]" style={{ fontFamily: "Cinzel, serif" }}>
@@ -380,7 +382,6 @@ export default function SalesDashboard() {
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
                     required
                     value={form.unitPrice}
                     onChange={(e) => update("unitPrice", e.target.value)}
@@ -395,7 +396,6 @@ export default function SalesDashboard() {
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
                     value={form.costPrice}
                     onChange={(e) => update("costPrice", e.target.value)}
                     placeholder="200"
