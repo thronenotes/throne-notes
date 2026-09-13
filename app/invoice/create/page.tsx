@@ -30,6 +30,7 @@ interface Template {
   defaultTaxRate: number;
   defaultTerms: string | null;
   defaultNotes: string | null;
+  isDefault: boolean;
 }
 
 const currencies = [
