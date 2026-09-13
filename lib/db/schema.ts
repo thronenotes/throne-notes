@@ -28,6 +28,7 @@ export const saleCategoryEnum = pgEnum("sale_category", [
   "marketing",
   "other",
 ]);
+export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "sent", "paid", "overdue", "cancelled"]);
 
 // ─── PROFILES ──────────────────────────────────────────────────────
 
@@ -285,6 +286,81 @@ export const sales = pgTable("sales", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+// ─── INVOICES ──────────────────────────────────────────────────────
+
+export const invoices = pgTable("invoices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => profiles.id).notNull(),
+  invoiceNumber: text("invoice_number").notNull(),
+  status: invoiceStatusEnum("status").default("draft"),
+  issueDate: date("issue_date").notNull(),
+  dueDate: date("due_date").notNull(),
+  currency: text("currency").default("USD"),
+
+  businessName: text("business_name").notNull(),
+  businessAddress: text("business_address"),
+  businessPhone: text("business_phone"),
+  businessEmail: text("business_email"),
+  businessLogo: text("business_logo"),
+
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email"),
+  customerPhone: text("customer_phone"),
+  customerAddress: text("customer_address"),
+
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  taxRate: integer("tax_rate").default(0),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
+  discount: decimal("discount", { precision: 10, scale: 2 }).default("0"),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).default("0"),
+  balanceDue: decimal("balance_due", { precision: 10, scale: 2 }).notNull(),
+
+  notes: text("notes"),
+  terms: text("terms"),
+
+  isRecurring: boolean("is_recurring").default(false),
+  recurringFrequency: text("recurring_frequency"),
+  recurringEndDate: date("recurring_end_date"),
+  parentInvoiceId: uuid("parent_invoice_id"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+// ─── INVOICE ITEMS ─────────────────────────────────────────────────
+
+export const invoiceItems = pgTable("invoice_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  invoiceId: uuid("invoice_id").references(() => invoices.id, { onDelete: "cascade" }).notNull(),
+  itemName: text("item_name").notNull(),
+  description: text("description"),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  imageUrl: text("image_url"),
+});
+
+// ─── INVOICE TEMPLATES ─────────────────────────────────────────────
+
+export const invoiceTemplates = pgTable("invoice_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => profiles.id).notNull(),
+  templateName: text("template_name").notNull(),
+  businessName: text("business_name").notNull(),
+  businessAddress: text("business_address"),
+  businessPhone: text("business_phone"),
+  businessEmail: text("business_email"),
+  businessLogo: text("business_logo"),
+  defaultCurrency: text("default_currency").default("USD"),
+  defaultTaxRate: integer("default_tax_rate").default(0),
+  defaultTerms: text("default_terms"),
+  defaultNotes: text("default_notes"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
 // ─── TYPE EXPORTS ──────────────────────────────────────────────────
 
 export type Profile = typeof profiles.$inferSelect;
@@ -309,3 +385,9 @@ export type Contract = typeof contracts.$inferSelect;
 export type NewContract = typeof contracts.$inferInsert;
 export type Sale = typeof sales.$inferSelect;
 export type NewSale = typeof sales.$inferInsert;
+export type Invoice = typeof invoices.$inferSelect;
+export type NewInvoice = typeof invoices.$inferInsert;
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+export type NewInvoiceItem = typeof invoiceItems.$inferInsert;
+export type InvoiceTemplate = typeof invoiceTemplates.$inferSelect;
+export type NewInvoiceTemplate = typeof invoiceTemplates.$inferInsert;
