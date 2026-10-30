@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import {
   Crown, Plus, Search, Loader2, FileText, Clock, CheckCircle,
-  DollarSign, AlertCircle, ArrowLeft, Send, TrendingUp
+  DollarSign, AlertCircle, ArrowLeft, Send, TrendingUp, Trash2
 } from "lucide-react";
 
 interface Invoice {
@@ -26,12 +26,17 @@ const currencySymbols: Record<string, string> = {
   USD: "$", GHS: "₵", EUR: "€", GBP: "£", NGN: "₦", ZAR: "R",
 };
 
+function getSymbol(currency: string) {
+  return currencySymbols[currency] || currency + " ";
+}
+
 export default function InvoicesDashboard() {
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState("");
 
   useEffect(() => {
     if (user?.id) fetchInvoices();
@@ -49,6 +54,19 @@ export default function InvoicesDashboard() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this invoice permanently?")) return;
+    setDeletingId(id);
+    try {
+      await fetch(`/api/invoices/${id}`, { method: "DELETE" });
+      fetchInvoices();
+    } catch (e) {
+      alert("Failed to delete");
+    } finally {
+      setDeletingId("");
+    }
+  };
+
   const filtered = invoices.filter((inv) => {
     const matchesFilter = filter === "all" || inv.status === filter;
     const matchesSearch =
@@ -56,6 +74,14 @@ export default function InvoicesDashboard() {
       inv.invoiceNumber.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+
+  // Determine primary currency from most common invoice currency
+  const currencyCounts = invoices.reduce((acc, inv) => {
+    acc[inv.currency] = (acc[inv.currency] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const primaryCurrency = Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "USD";
+  const sym = getSymbol(primaryCurrency);
 
   const stats = {
     total: invoices.length,
@@ -82,8 +108,6 @@ export default function InvoicesDashboard() {
       </span>
     );
   };
-
-  const getSymbol = (c: string) => currencySymbols[c] || c + " ";
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-[#F5F0E6] font-[Inter,sans-serif]">
@@ -116,8 +140,8 @@ export default function InvoicesDashboard() {
             { label: "Paid", value: stats.paid, color: "text-[#046307]", icon: CheckCircle },
             { label: "Pending", value: stats.pending, color: "text-[#D4AF37]", icon: Clock },
             { label: "Overdue", value: stats.overdue, color: "text-[#8B0000]", icon: AlertCircle },
-            { label: "Revenue", value: `${getSymbol("USD")}${stats.revenue.toLocaleString()}`, color: "text-[#D4AF37]", icon: DollarSign },
-            { label: "Outstanding", value: `${getSymbol("USD")}${stats.outstanding.toLocaleString()}`, color: "text-[#8B0000]", icon: TrendingUp },
+            { label: "Revenue", value: `${sym}${stats.revenue.toLocaleString()}`, color: "text-[#D4AF37]", icon: DollarSign },
+            { label: "Outstanding", value: `${sym}${stats.outstanding.toLocaleString()}`, color: "text-[#8B0000]", icon: TrendingUp },
           ].map((s) => (
             <div key={s.label} className="bg-[#14141E] border border-[#2A2A3E] rounded-xl p-4">
               <s.icon className={`w-4 h-4 ${s.color} mb-2`} />
@@ -208,12 +232,22 @@ export default function InvoicesDashboard() {
                         {new Date(inv.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <Link
-                          href={`/invoice/${inv.id}`}
-                          className="px-3 py-1.5 bg-[#D4AF37]/10 text-[#D4AF37] rounded-md text-[11px] font-bold hover:bg-[#D4AF37]/20 transition-colors"
-                        >
-                          View
-                        </Link>
+                        <div className="flex items-center justify-center gap-2">
+                          <Link
+                            href={`/invoice/${inv.id}`}
+                            className="px-3 py-1.5 bg-[#D4AF37]/10 text-[#D4AF37] rounded-md text-[11px] font-bold hover:bg-[#D4AF37]/20 transition-colors"
+                          >
+                            View
+                          </Link>
+                          <button
+                            onClick={() => handleDelete(inv.id)}
+                            disabled={deletingId === inv.id}
+                            className="text-[#8B0000] hover:text-[#8B0000]/70 transition-colors p-1.5"
+                            title="Delete invoice"
+                          >
+                            {deletingId === inv.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

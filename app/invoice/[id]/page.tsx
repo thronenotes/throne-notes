@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Crown, CheckCircle, Loader2, AlertCircle, Printer, Send,
-  DollarSign, ArrowLeft, Clock, Repeat
+  DollarSign, ArrowLeft, Clock, Repeat, Trash2, Pencil
 } from "lucide-react";
 
 interface InvoiceItem {
@@ -54,6 +54,7 @@ const currencySymbols: Record<string, string> = {
 };
 
 export default function InvoiceView() {
+  const router = useRouter();
   const params = useParams();
   const invoiceId = params.id as string;
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -61,6 +62,7 @@ export default function InvoiceView() {
   const [error, setError] = useState("");
   const [marking, setMarking] = useState(false);
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
   const [createTreasuryEntry, setCreateTreasuryEntry] = useState(true);
 
@@ -79,10 +81,6 @@ export default function InvoiceView() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSign = async () => {
-    // placeholder for signature if needed later
   };
 
   const handlePrint = () => window.print();
@@ -121,6 +119,23 @@ export default function InvoiceView() {
       alert("Failed to send");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Delete this invoice permanently?")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`, { method: "DELETE" });
+      if (res.ok) {
+        router.push("/dashboard/invoices");
+      } else {
+        alert("Failed to delete invoice");
+      }
+    } catch (e) {
+      alert("Network error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -197,11 +212,25 @@ export default function InvoiceView() {
                 </button>
               </>
             )}
+            <Link
+              href={`/invoice/${invoiceId}/edit`}
+              className="flex items-center gap-2 px-4 py-2 bg-[#4B0082]/15 text-[#4B0082] rounded-lg text-xs font-bold hover:bg-[#4B0082]/25 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Edit
+            </Link>
             <button
               onClick={handlePrint}
               className="flex items-center gap-2 px-4 py-2 bg-[#14141E] border border-[#2A2A3E] text-[#F5F0E6] rounded-lg text-xs font-bold hover:bg-[#1E1E2A] transition-colors"
             >
               <Printer className="w-3.5 h-3.5" /> Print / PDF
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-2 px-4 py-2 bg-[#8B0000]/15 text-[#8B0000] rounded-lg text-xs font-bold hover:bg-[#8B0000]/25 transition-colors disabled:opacity-50"
+            >
+              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              {deleting ? "Deleting..." : "Delete"}
             </button>
           </div>
         </div>
