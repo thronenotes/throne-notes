@@ -4,8 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  Crown, Plus, Trash2, ArrowLeft, ArrowRight, Loader2,
-  Upload, ImageIcon, DollarSign, X, Sparkles, Save
+  Crown, Plus, Trash2, ArrowLeft, Loader2,
+  Upload, ImageIcon, Sparkles, Save, AlertCircle
 } from "lucide-react";
 import Link from "next/link";
 
