@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, format, images } = await req.json();
-    if (!prompt) return NextResponse.json({ error: "Missing prompt" }, { status: 400 });
+    const { prompt, format, images, currentDoc, refinement } = await req.json();
+    if (!prompt && !refinement) {
+      return NextResponse.json({ error: "Missing prompt" }, { status: 400 });
+    }
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
     }
@@ -16,9 +18,19 @@ export async function POST(req: NextRequest) {
     };
 
     const hasImages = Array.isArray(images) && images.length > 0;
+    const isRefinement = currentDoc && refinement;
 
     const instruction = `You are a world-class document designer and copywriter.
-Create ${formatGuide[format] || formatGuide.proposal}.
+${isRefinement
+  ? `The user already has the document below and wants a revision applied to it.
+
+CURRENT DOCUMENT (JSON):
+${JSON.stringify(currentDoc)}
+
+REQUESTED REVISION: "${refinement}"
+
+Apply the revision and return the FULL updated document in the exact same JSON schema. Change only what the revision asks for — keep everything else intact.`
+  : `Create ${formatGuide[format] || formatGuide.proposal}.`}
 
 Return ONLY valid JSON matching this exact schema — no markdown, no code fences:
 {
@@ -39,14 +51,12 @@ Rules:
 - Write in a confident, premium tone. No fluff.
 - Currency amounts must be plain numbers.
 ${hasImages ? `- The user attached ${images.length} image(s) (indexed 0 to ${images.length - 1}). Look at them. If an image belongs in a section (e.g., a logo, product photo, inspiration), set that section's "imageIndex" to the image's index number. Otherwise leave it null. Reference what you see in the images where relevant.` : ""}
-
-USER REQUEST: ${prompt}`;
+${!isRefinement ? `\nUSER REQUEST: ${prompt}` : ""}`;
 
     // Build parts: text + images
     const parts: any[] = [{ text: instruction }];
     if (hasImages) {
       for (const img of images) {
-        // img is a dataURL: "data:image/png;base64,...."
         const [header, data] = img.split(",");
         const mimeType = header?.match(/data:(.*?);/)?.[1] || "image/png";
         if (data) parts.push({ inlineData: { mimeType, data } });
