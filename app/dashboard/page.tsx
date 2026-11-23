@@ -24,6 +24,7 @@ import {
   Clock,
   DollarSign,
   Receipt,
+  Palette,
 } from "lucide-react";
 
 interface Book {
@@ -155,7 +156,8 @@ export default function Dashboard() {
     { name: "The Oracle", href: "/oracle", icon: Sparkles, color: "#B87333" },
     { name: "Feed", href: "/feed", icon: Rss, color: "#B87333" },
     { name: "Proposal Forge", href: "/proposal", icon: FileText, color: "#D4AF37" },
-    { name: "Proposal Studio", href: "/proposal-studio", icon: Sparkles, color: "#9D6CFF" },
+    { name: "Proposal Studio", href: "/proposal-studio", icon: FileText, color: "#9D6CFF" },
+    { name: "Design Studio", href: "/design-studio", icon: Palette, color: "#9D6CFF" },
     { name: "Treasury Ledger", href: "/dashboard/sales", icon: DollarSign, color: "#046307" },
     { name: "Invoice Forge", href: "/dashboard/invoices", icon: Receipt, color: "#D4AF37" },
   ];
@@ -270,7 +272,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-3 md:grid-cols-9 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 mb-10">
           {shortcuts.map((s) => {
             const Icon = s.icon;
             return (
